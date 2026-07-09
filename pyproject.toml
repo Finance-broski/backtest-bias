@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "backtest-bias"
-version = "0.1.0"
+version = "0.1.1"
 description = "Checks whether your backtest data is lying to you: survivorship, dead-name coverage, integrity gates for financial price panels."
 readme = "README.md"
 license = { text = "MIT" }

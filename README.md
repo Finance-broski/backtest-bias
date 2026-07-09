@@ -16,8 +16,10 @@ These are not estimates. I measured them on real Indian market data and publishe
   universe vintage — same market, same method, 3x difference. Anyone quoting one number is guessing.
 - On the most widely used Kaggle NSE dataset, index-membership look-ahead added **+10%** terminal
   wealth cap-weighted and **+43%** equal-weighted over 2010-2021. The bias depends on construction.
-- Comparable mid/large-cap universes lose **10-30%** of their names over multi-year windows.
-  If your panel lost zero, your panel is the problem.
+- How much of a universe *should* be dead? Measured across six top-500 vintages (2012-2022,
+  Indian equities), the curve is remarkably stable: **~6-8% by 3 years, 11-14% by 5, 17-21% by 7,
+  24-30% by 10.** Verdicts quote the range matched to your window length. If your panel lost
+  zero names, your panel is the problem.
 
 ## Install
 
@@ -39,7 +41,7 @@ print(report.summary())
 ```
 survivorship check: 412 symbols over 9.2y, 0 died in-window (0%)
 verdict: SEVERE - 412 names over 9.2y with zero deaths is the survivor-only signature;
-comparable universes lose 10%-30% of names over such windows
+comparable universes lose 22%-28% of names over 9y (measured)
 expect EW returns inflated roughly +0.8-2.5 pp/yr vs an honest universe (measured,
 vintage-dependent; see backtest_bias.REFERENCES)
 ```
