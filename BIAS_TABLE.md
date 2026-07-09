@@ -28,6 +28,6 @@ New rows are added as audits publish. The library that checks some of these auto
 - Corrections welcome: open an issue with your own measurement and method. Measured
   disagreements are the good kind.
 
-*Write-ups with charts: the audits publish on Reddit (u/Finance__broski) and
+*Get new rows by email: **[The Bias Ledger](https://financebroski.substack.com)** — one measured bias at a time. Write-ups with charts publish on Reddit (u/Finance__broski) and
 [LinkedIn](https://www.linkedin.com/in/ayanjain259). To have this class of check run on your own
 backtest: [Bias Check](https://forms.gle/sAvosfHnitCBm9FD7) — fixed price, 48h, written verdict.*

@@ -71,6 +71,6 @@ those audits. If you want this class of check run on your own backtest by a pers
 library, that's my [Bias Check](https://forms.gle/sAvosfHnitCBm9FD7): fixed price, 48h, written
 verdict.
 
-**The Bias Table:** every measured number behind this library, one page, citable: [BIAS_TABLE.md](BIAS_TABLE.md).
+**The Bias Table:** every measured number behind this library, one page, citable: [BIAS_TABLE.md](BIAS_TABLE.md). New rows land by email at [The Bias Ledger](https://financebroski.substack.com).
 
 MIT licensed. Issues and war stories welcome — especially datasets that fooled you.
