@@ -78,6 +78,12 @@ with what's wrong and roughly what it costs in return terms. Fixed price, Rs 7,5
 through the [intake form](https://forms.gle/sAvosfHnitCBm9FD7) or email ayanjain259@gmail.com.
 Larger or ongoing work is scoped separately, tell me the problem and I'll send a quote.
 
+**Public data and replication:** a survivorship-free Indian equity dataset (NSE/BSE) and a
+runnable notebook that visualizes the bias on a sample are on Kaggle under
+[financebroski](https://www.kaggle.com/financebroski) (the
+[dataset](https://www.kaggle.com/datasets/financebroski/survivorship-free-indian-equity-data-nsebse)
+and the [notebook](https://www.kaggle.com/code/financebroski/survivorship-bias-visualized-indian-equity-sample)).
+
 **The Bias Table:** every measured number behind this library, one page, citable:
 [BIAS_TABLE.md](BIAS_TABLE.md). New rows land by email at
 [The Bias Ledger](https://financebroski.substack.com).
