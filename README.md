@@ -1,5 +1,7 @@
 # backtest-bias
 
+[![DOI](https://zenodo.org/badge/1294836988.svg)](https://doi.org/10.5281/zenodo.21770386)
+
 **Checks whether your backtest data is lying to you.**
 
 Most backtests don't fail loudly. They flatter you quietly, because the data underneath them is
@@ -27,11 +29,12 @@ These are not estimates. I measured them on real Indian market data and publishe
 
 If you use the library or the measured constants in [BIAS_TABLE.md](BIAS_TABLE.md), cite it as:
 
-> Jain, A. (2026). *backtest-bias: survivorship and integrity checks for financial price panels*
-> (version 0.1.2). https://github.com/Finance-broski/backtest-bias
+> Jain, A. (2026). *backtest-bias: survivorship and integrity checks for financial price panels*.
+> Zenodo. https://doi.org/10.5281/zenodo.21770386
 
-GitHub reads `CITATION.cff` in this repo, so the "Cite this repository" button in the sidebar
-produces BibTeX and APA directly. A DOI is being minted; this section will carry it once issued.
+That DOI is the concept DOI: it always resolves to the latest version. GitHub also reads
+`CITATION.cff` in this repo, so the "Cite this repository" button in the sidebar produces BibTeX
+and APA directly.
 
 ## Install
 
