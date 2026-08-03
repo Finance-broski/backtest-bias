@@ -23,6 +23,16 @@ These are not estimates. I measured them on real Indian market data and publishe
   10.** Verdicts quote the range matched to your window length. If your panel lost zero names,
   your panel is the problem.
 
+## Citing this
+
+If you use the library or the measured constants in [BIAS_TABLE.md](BIAS_TABLE.md), cite it as:
+
+> Jain, A. (2026). *backtest-bias: survivorship and integrity checks for financial price panels*
+> (version 0.1.2). https://github.com/Finance-broski/backtest-bias
+
+GitHub reads `CITATION.cff` in this repo, so the "Cite this repository" button in the sidebar
+produces BibTeX and APA directly. A DOI is being minted; this section will carry it once issued.
+
 ## Install
 
 ```
