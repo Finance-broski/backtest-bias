@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: Jain
     given-names: Ayan
-    website: "https://finance-broski.github.io/"
+    website: "https://financebroski.com/"
 doi: 10.5281/zenodo.21770386
 identifiers:
   - type: doi
@@ -15,7 +15,7 @@ identifiers:
     value: 10.5281/zenodo.21770387
     description: "Version DOI for v0.1.2"
 repository-code: "https://github.com/Finance-broski/backtest-bias"
-url: "https://finance-broski.github.io/"
+url: "https://financebroski.com/"
 abstract: >-
   A Python library that tests whether a financial price panel is survivorship-correct, together
   with the Indian Backtest Bias Table: a set of measured bias constants for Indian equities
