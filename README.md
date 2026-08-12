@@ -102,3 +102,7 @@ and the [notebook](https://www.kaggle.com/code/financebroski/survivorship-bias-v
 [The Bias Ledger](https://financebroski.substack.com).
 
 MIT licensed. Issues and war stories welcome, especially datasets that fooled you.
+
+## The practice behind this
+
+I audit backtests and datasets professionally. The public record, 155 strategies tested and 143 killed, lives at [financebroski.com/graveyard.html](https://financebroski.com/graveyard.html); the audit practice is at [financebroski.com](https://financebroski.com).

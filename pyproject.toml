@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "backtest-bias"
-version = "0.1.2"
+version = "0.1.3"
 description = "Checks whether your backtest data is lying to you: survivorship, dead-name coverage, integrity gates for financial price panels."
 readme = "README.md"
 license = { text = "MIT" }
@@ -21,7 +21,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Finance-broski/backtest-bias"
+Homepage = "https://financebroski.com"
+Repository = "https://github.com/Finance-broski/backtest-bias"
+"Bias Table" = "https://github.com/Finance-broski/backtest-bias/blob/main/BIAS_TABLE.md"
 
 [tool.setuptools.packages.find]
 include = ["backtest_bias*"]
