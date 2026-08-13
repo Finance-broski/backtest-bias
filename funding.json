@@ -50,7 +50,7 @@
     "guid": "maintainer-year",
     "status": "active",
     "name": "Maintainer support, 12 months",
-    "description": "MILESTONES over 12 months: (1) US calibration constants v1, death-rate curve + return-effect bands by vintage; first release SHIPPED 2026-08-13 (Substack Issue #10 + Kaggle dataset kaggle.com/datasets/financebroski/s-and-p-500-survivorship-bias-point-in-time). (2) Identity toolkit: mid-series ticker-reanimation detector + first-bar checks, wired into the library (four documented reanimations moved a measured result 1.7 pp/yr). (3) US corporate-death registry: open dataset, every invisible S&P member with sourced exit type and date, seed of 139 names staged. (4) Multi-market death-rate comparison: India and US measured, China leg in design with an academic collaborator. Quarterly community write-ups per FOSS United expectations.",
+    "description": "12 months of maintainer support. Milestones: (1) US calibration constants v1; first release SHIPPED 2026-08-13 (Substack Issue #10 + Kaggle dataset). (2) Ticker-identity toolkit: reanimation + first-bar detectors wired into the library. (3) Open US corporate-death registry, every entry with a source URL; 139-name seed staged. (4) Multi-market death-rate comparison: India + US measured, China leg in design. Quarterly community write-ups throughout.",
     "amount": 250000,
     "currency": "INR",
     "frequency": "one-time",
