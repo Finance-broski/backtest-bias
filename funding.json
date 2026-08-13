@@ -51,7 +51,7 @@
     "status": "active",
     "name": "Maintainer support, 12 months",
     "description": "12 months of maintainer support. Milestones: (1) US calibration constants v1; first release SHIPPED 2026-08-13 (Substack Issue #10 + Kaggle dataset). (2) Ticker-identity toolkit: reanimation + first-bar detectors wired into the library. (3) Open US corporate-death registry, every entry with a source URL; 139-name seed staged. (4) Multi-market death-rate comparison: India + US measured, China leg in design. Quarterly community write-ups throughout.",
-    "amount": 250000,
+    "amount": 500000,
     "currency": "INR",
     "frequency": "one-time",
     "channels": [
