@@ -7,7 +7,8 @@
   "email": "ayanjain259@gmail.com",
   "description": "Independent quantitative researcher. I build point-in-time market data and audit backtests; backtest-bias is the open library of measured bias constants behind that work.",
   "webpageUrl": {
-   "url": "https://financebroski.com"
+   "url": "https://financebroski.com",
+   "wellKnown": "https://financebroski.com/.well-known/funding-manifest-urls"
   }
  },
  "projects": [
@@ -16,7 +17,8 @@
    "name": "backtest-bias",
    "description": "Survivorship and data-integrity checks for financial price panels, built on measured constants rather than folklore. Measured and published: 24% of India's 2015 top-500 is invisible to free data; 25.7% of the 2010 S&P 500 (20.1% for 2015); a survivor filter moves a US backtest +0.4 to +1.0 pp/yr, and four recycled tickers moved it 1.7 pp/yr, more than the bias itself. One-line checks for survivorship holes, ticker recycling, and universe construction. Audience: retail quants who cannot afford institutional survivorship-free data, which in India is nearly everyone who backtests. Everything public and git-timestamped: PyPI (backtest-bias), a public ledger of 143 failed strategies, SSRN paper 7099378, Kaggle dataset + notebook, weekly write-ups.",
    "webpageUrl": {
-    "url": "https://financebroski.com"
+    "url": "https://financebroski.com",
+    "wellKnown": "https://financebroski.com/.well-known/funding-manifest-urls"
    },
    "repositoryUrl": {
     "url": "https://github.com/Finance-broski/backtest-bias"
