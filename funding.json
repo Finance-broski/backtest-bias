@@ -14,7 +14,7 @@
   {
    "guid": "backtest-bias",
    "name": "backtest-bias",
-   "description": "Survivorship and data-integrity checks for financial price panels, built on measured constants (India: 24% of the 2015 top-500 invisible to free data; US: 25.7%/20.1% by vintage). One-line checks for survivorship holes, ticker recycling, and universe construction. Used by retail quants who cannot afford institutional survivorship-free data.",
+   "description": "Survivorship and data-integrity checks for financial price panels, built on measured constants rather than folklore. Measured and published: 24% of India's 2015 top-500 is invisible to free data; 25.7% of the 2010 S&P 500 (20.1% for 2015); a survivor filter moves a US backtest +0.4 to +1.0 pp/yr, and four recycled tickers moved it 1.7 pp/yr, more than the bias itself. One-line checks for survivorship holes, ticker recycling, and universe construction. Audience: retail quants who cannot afford institutional survivorship-free data, which in India is nearly everyone who backtests. Everything public and git-timestamped: PyPI (backtest-bias), a public ledger of 143 failed strategies, SSRN paper 7099378, Kaggle dataset + notebook, weekly write-ups.",
    "webpageUrl": {
     "url": "https://financebroski.com"
    },
@@ -46,7 +46,7 @@
     "guid": "maintainer-year",
     "status": "active",
     "name": "Maintainer support, 12 months",
-    "description": "MILESTONES: (1) US calibration constants v1 - death-rate curve + return-effect bands by vintage, mirroring the published India constants. (2) Identity toolkit - mid-series ticker-reanimation detector + first-bar checks (four reanimated tickers already documented moving results 1.7pp/yr). (3) US corporate-death registry - open dataset, every invisible S&P member with sourced exit type/date. (4) Multi-market death-rate comparison (India/US measured, China collaboration in design). Quarterly community write-ups per FOSS United expectations.",
+    "description": "MILESTONES over 12 months: (1) US calibration constants v1, death-rate curve + return-effect bands by vintage; first release SHIPPED 2026-08-13 (Substack Issue #10 + Kaggle dataset kaggle.com/datasets/financebroski/s-and-p-500-survivorship-bias-point-in-time). (2) Identity toolkit: mid-series ticker-reanimation detector + first-bar checks, wired into the library (four documented reanimations moved a measured result 1.7 pp/yr). (3) US corporate-death registry: open dataset, every invisible S&P member with sourced exit type and date, seed of 139 names staged. (4) Multi-market death-rate comparison: India and US measured, China leg in design with an academic collaborator. Quarterly community write-ups per FOSS United expectations.",
     "amount": 250000,
     "currency": "INR",
     "frequency": "one-time",
