@@ -57,6 +57,18 @@
     "channels": [
      "bank"
     ]
+   },
+   {
+    "guid": "research-year",
+    "status": "active",
+    "name": "Full-time research year",
+    "description": "Everything in the maintainer plan, done full time for a year, sized for a fund that writes larger cheques: the US corporate-death registry completed with a sourced exit for every invisible S&P name (seed of 139 public), the identity toolkit shipped (check_identity and check_universe went live in v0.2.0), price-level look-ahead checks (v0.3), the India-US-China death-rate comparison finished, and the public datasets (Kaggle + the live auction ledger) hosted and maintained. Quarterly write-ups.",
+    "amount": 2500000,
+    "currency": "INR",
+    "frequency": "one-time",
+    "channels": [
+     "bank"
+    ]
    }
   ]
  }
