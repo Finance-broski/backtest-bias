@@ -1,4 +1,5 @@
 {
+ "$schema": "https://fundingjson.org/schema/v1.1.0.json",
  "version": "v1.0.0",
  "entity": {
   "type": "individual",
@@ -21,7 +22,8 @@
     "wellKnown": "https://financebroski.com/.well-known/funding-manifest-urls"
    },
    "repositoryUrl": {
-    "url": "https://github.com/Finance-broski/backtest-bias"
+    "url": "https://github.com/Finance-broski/backtest-bias",
+    "wellKnown": "https://github.com/Finance-broski/backtest-bias/blob/main/.well-known/funding-manifest-urls"
    },
    "licenses": [
     "spdx:MIT"
@@ -56,7 +58,6 @@
      "bank"
     ]
    }
-  ],
-  "history": []
+  ]
  }
 }
