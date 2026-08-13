@@ -1,3 +1,16 @@
+# 0.2.0 (2026-08-14)
+
+- New: `check_identity` - reanimation detector (wild months + penny prints inside one
+  series) and late-first-bar detector, with an `IdentityReport`. Advisory by design:
+  verify suspects against corporate-action records; real +1,625% months exist.
+- New: `check_universe` - the look-ahead signature (coverage rising after the start date)
+  and the missing-deaths signature (start-alive members dying far below the measured
+  curve), with a `UniverseReport`.
+- New: `REFERENCES["US"]` - measured S&P 500 vintage constants: bias +0.4 to +1.0 pp/yr,
+  yearly gap range -7.5 to +3.5, identity error 1.7 pp/yr.
+- Exposed `expected_death_range` in the public API.
+- Fixed: `__version__` drift between the package and pyproject.
+
 # Changelog
 
 ## 0.1.2 (2026-08-01): docs-only

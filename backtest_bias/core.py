@@ -24,6 +24,16 @@ REFERENCES = {
         "construction_dependence": "+10% terminal wealth (cap-weighted) to +43% (equal-weight) "
                                    "measured on one widely used dataset, 2010-2021",
     },
+    "US": {
+        # Measured on point-in-time S&P 500 vintages (2010, 2015) against the same free
+        # source, exits priced at last close; write-ups on the site.
+        "bias_pp_per_year": (0.4, 1.0),
+        "yearly_gap_range_pp": (-7.5, 3.5),  # survivor-minus-true by year: small on average,
+                                             # large always
+        "identity_pp_per_year": 1.7,         # four recycled tickers (dead company, new listing
+                                             # on the same symbol) moved a measured result by
+                                             # this much - more than the bias itself
+    },
 }
 
 
@@ -193,3 +203,168 @@ def assert_integrity(prices: pd.DataFrame, min_dead_ratio: float = 0.05,
             f"survivorship gate failed: dead-name ratio {r:.1%} < required {min_dead_ratio:.0%}. "
             f"This panel likely only contains stocks that survived to the end; backtests on it "
             f"will overstate returns (measured +0.8-2.5 pp/yr EW on Indian data).")
+
+
+@dataclass
+class IdentityReport:
+    n_symbols: int
+    reanimation_suspects: list
+    late_first_bars: list
+    severity: str                      # "clean" | "warn" | "severe"
+    detail: str
+
+    def summary(self) -> str:
+        lines = [f"identity check: {self.n_symbols} symbols, "
+                 f"{len(self.reanimation_suspects)} reanimation suspects, "
+                 f"{len(self.late_first_bars)} late first bars",
+                 f"verdict: {self.severity.upper()} - {self.detail}"]
+        if self.reanimation_suspects:
+            lines.append("suspects: " + ", ".join(
+                f"{s['symbol']} (wild_months={s['wild_months']}, min_px={s['min_px']:.2f})"
+                for s in self.reanimation_suspects[:10]))
+            lines.append("verify each against corporate-action records before use. Four "
+                         "recycled tickers moved a measured US result by 1.7 pp/yr, more "
+                         "than the survivorship bias itself (see backtest_bias.REFERENCES).")
+        return "\n".join(lines)
+
+    def __repr__(self):
+        return (f"<IdentityReport {self.severity}: {len(self.reanimation_suspects)} suspects, "
+                f"{len(self.late_first_bars)} late first bars>")
+
+
+def check_identity(prices: pd.DataFrame, wild_ret: float = 1.5, min_wild: int = 2,
+                   penny_px: float = 2.0, grace_days: int = 120, min_obs: int = 60,
+                   **to_wide_kw) -> IdentityReport:
+    """Is each ticker the same company all the way through its series?
+
+    Free sources silently stitch a new listing onto a dead company's history when a ticker
+    is reused (Compuware died 2014; CPWR later printed a +4,567% month when the replacement
+    was spliced on). Two cheap detectors catch most of it:
+
+    - reanimation: two or more months with |return| > wild_ret combined with penny-level
+      prints inside one series means two companies are stitched together;
+    - late first bar: a series that starts well after the panel does is a later listing or
+      a recycled symbol - it cannot have been bought at the panel's start.
+
+    Both are advisory: verify flagged names against corporate-action records rather than
+    dropping them blindly (a real +1,625% month exists; filters must kill fake returns
+    without killing embarrassing true ones)."""
+    w = to_wide(prices, **to_wide_kw)
+    firsts, _ = _lifespans(w, min_obs)
+    panel_start = w.index.min()
+    monthly = w.resample("ME").last()
+    rets = monthly.pct_change(fill_method=None)
+
+    suspects, late = [], []
+    for c in w.columns:
+        s = monthly[c].dropna() if c in monthly.columns else pd.Series(dtype=float)
+        if s.empty:
+            continue
+        wild = int((rets[c].abs() > wild_ret).sum())
+        pmin = float(s.min())
+        if wild >= min_wild and pmin < penny_px:
+            suspects.append({"symbol": str(c), "wild_months": wild, "min_px": pmin})
+        fv = firsts.get(c)
+        if fv is not None and fv > panel_start + pd.Timedelta(days=grace_days):
+            late.append({"symbol": str(c), "first_bar": str(pd.Timestamp(fv).date())})
+
+    if suspects:
+        sev = "severe"
+        detail = (f"{len(suspects)} series carry the reanimation signature (wild months + "
+                  f"penny prints): likely two companies stitched onto one ticker")
+    elif late:
+        sev = "warn"
+        detail = (f"{len(late)} series start well after the panel does: later listings or "
+                  f"recycled symbols; exclude them from any window that begins before their "
+                  f"first bar")
+    else:
+        sev = "clean"
+        detail = "no reanimation signatures; every series spans the panel it claims"
+    return IdentityReport(n_symbols=len(w.columns), reanimation_suspects=suspects,
+                          late_first_bars=late, severity=sev, detail=detail)
+
+
+@dataclass
+class UniverseReport:
+    n_universe: int
+    n_present: int
+    coverage_at_start: float
+    coverage_ever: float
+    lookahead_suspected: bool
+    n_alive_at_start: int
+    n_died_in_window: int
+    died_ratio: float
+    window_years: float
+    survivor_only_suspected: bool
+    severity: str                      # "clean" | "warn" | "severe"
+    detail: str
+    market: str = "IN"
+
+    def summary(self) -> str:
+        lines = [f"universe check: {self.n_universe} names, {self.n_present} present in panel; "
+                 f"coverage {self.coverage_at_start:.0%} at start vs {self.coverage_ever:.0%} ever",
+                 f"deaths: {self.n_died_in_window}/{self.n_alive_at_start} start-alive names "
+                 f"stopped printing over {self.window_years:.1f}y ({self.died_ratio:.0%})",
+                 f"verdict: {self.severity.upper()} - {self.detail}"]
+        return "\n".join(lines)
+
+    def __repr__(self):
+        return f"<UniverseReport {self.severity}: coverage {self.coverage_at_start:.0%}->{self.coverage_ever:.0%}, deaths {self.died_ratio:.0%}>"
+
+
+def check_universe(prices: pd.DataFrame, universe, start, gap_days: int = 60,
+                   min_obs: int = 60, market: str = "IN", **to_wide_kw) -> UniverseReport:
+    """Was this universe knowable on its start date, and does it die like a real one?
+
+    Two signatures of a today's-list-backfilled universe (a look-ahead in universe
+    construction, the most common survivorship mechanism in practice):
+
+    - rising coverage: members whose data begins after the start date were added to the
+      index later - the list is today's, applied backwards;
+    - missing deaths: a real universe loses names to delisting and merger at a measured
+      rate; a universe whose start-alive members almost never stop printing was filtered
+      through hindsight, whatever its coverage profile looks like.
+
+    `universe` is the member list you backtest on; `start` is the date the backtest begins."""
+    w = to_wide(prices, **to_wide_kw)
+    uni = [str(x).strip() for x in pd.Series(universe).astype(str) if str(x).strip()]
+    start = pd.Timestamp(start)
+    have = [c for c in w.columns if str(c) in set(uni)]
+    end = w.index.max()
+    years = max((end - start).days / 365.25, 0.01)
+
+    at_start = [c for c in have if w[c].loc[:start].notna().any()]
+    cov0 = len(at_start) / max(len(uni), 1)
+    cov1 = len(have) / max(len(uni), 1)
+    lookahead = (cov1 - cov0) > 0.10
+
+    died = [c for c in at_start
+            if w[c].last_valid_index() is not None
+            and w[c].last_valid_index() < end - pd.Timedelta(days=gap_days)]
+    died_ratio = len(died) / max(len(at_start), 1)
+    exp = expected_death_range(years, market)
+
+    survivor_only = bool(exp and died_ratio < 0.5 * exp[0] and years >= 3.0)
+    if lookahead:
+        sev = "severe"
+        detail = (f"coverage rises {cov0:.0%} -> {cov1:.0%}: members enter the data after the "
+                  f"start date, the signature of today's list applied backwards")
+    elif survivor_only:
+        sev = "severe"
+        detail = (f"only {died_ratio:.0%} of start-alive names die over {years:.1f}y where "
+                  f"comparable universes lose {exp[0]:.0%}-{exp[1]:.0%} (measured): the "
+                  f"corpses are missing, likely a survivor-filtered source")
+    elif exp and died_ratio < exp[0] and years >= 3.0:
+        sev = "warn"
+        detail = (f"death share {died_ratio:.0%} sits below the measured "
+                  f"{exp[0]:.0%}-{exp[1]:.0%} band: ask where the delisted names went")
+    else:
+        sev = "clean"
+        detail = ("coverage flat and death share plausible; still confirm the universe "
+                  "file's as-of date in writing")
+    return UniverseReport(n_universe=len(uni), n_present=len(have), coverage_at_start=cov0,
+                          coverage_ever=cov1, lookahead_suspected=lookahead,
+                          n_alive_at_start=len(at_start), n_died_in_window=len(died),
+                          died_ratio=died_ratio, window_years=years,
+                          survivor_only_suspected=survivor_only, severity=sev,
+                          detail=detail, market=market)

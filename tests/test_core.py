@@ -137,3 +137,73 @@ def test_multiindex_columns_flatten():
 def test_horizon_matched_expectation_in_detail():
     rep = check_survivorship(survivor_panel())          # ~10y window
     assert "measured" in rep.detail and "%" in rep.detail
+
+
+# ---------------- v0.2: identity + universe ----------------
+from backtest_bias import check_identity, check_universe
+
+
+def reanimated_panel():
+    """One ticker carries two companies, spliced seamlessly (the real yfinance behavior):
+    a volatile penny-print death era, then a new listing's prices on the same symbol."""
+    df = survivor_panel(20)
+    z = df["S000"].to_numpy().copy()
+    third = len(DAYS) // 3
+    z[:third] = np.tile([0.9, 0.25, 1.3, 0.4], third // 4 + 1)[:third]  # penny chaos
+    z[third:] = _walk(len(DAYS) - third) * 2           # new company, no gap, no flag
+    df["S000"] = z
+    return df
+
+
+def test_identity_reanimation_flagged():
+    rep = check_identity(reanimated_panel())
+    assert rep.severity == "severe"
+    assert any(s["symbol"] == "S000" for s in rep.reanimation_suspects)
+    assert "1.7 pp/yr" in rep.summary()
+
+
+def test_identity_clean_on_honest_panel():
+    df, _ = honest_panel()
+    rep = check_identity(df)
+    assert rep.severity in ("clean", "warn")           # deaths are fine; no reanimation
+    assert not rep.reanimation_suspects
+
+
+def test_identity_late_first_bar_warn():
+    df = survivor_panel(10)
+    late = df.columns[0]
+    df.loc[df.index < DAYS[len(DAYS) // 2], late] = np.nan
+    rep = check_identity(df)
+    assert rep.severity == "warn"
+    assert any(x["symbol"] == str(late) for x in rep.late_first_bars)
+
+
+def test_universe_survivor_only_severe():
+    """A full-history panel backtested on a start date: no deaths among members = severe."""
+    df = survivor_panel(30)
+    rep = check_universe(df, list(df.columns), DAYS[10], market="IN")
+    assert rep.severity == "severe" and rep.survivor_only_suspected
+    assert not rep.lookahead_suspected
+    assert "corpses are missing" in rep.detail
+
+
+def test_universe_lookahead_severe():
+    """Members whose data begins after the start date: today's list applied backwards."""
+    df, _ = honest_panel(30, 0.3)
+    for c in df.columns[-8:]:                          # 8 late joiners enter mid-panel
+        df.loc[df.index < DAYS[len(DAYS) // 2], c] = np.nan
+    rep = check_universe(df, list(df.columns), DAYS[10])
+    assert rep.lookahead_suspected and rep.severity == "severe"
+    assert "applied backwards" in rep.detail
+
+
+def test_universe_honest_clean():
+    df, _ = honest_panel(30, 0.3)
+    rep = check_universe(df, list(df.columns), DAYS[10])
+    assert rep.severity == "clean"
+
+
+def test_us_reference_band():
+    rep = check_survivorship(survivor_panel(), market="US")
+    assert rep.severity == "severe"
+    assert rep.estimated_bias_pp_per_year() == (0.4, 1.0)

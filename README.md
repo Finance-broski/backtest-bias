@@ -61,6 +61,25 @@ expect EW returns inflated roughly +0.8-3.2 pp/yr vs an honest universe (measure
 vintage-dependent; see backtest_bias.REFERENCES)
 ```
 
+## What v0.2 adds
+
+```python
+from backtest_bias import check_identity, check_universe
+
+# is each ticker the same company all the way through its series?
+print(check_identity(prices).summary())
+
+# was your member list knowable on the backtest's start date, and does it die like a real one?
+print(check_universe(prices, universe=my_symbols, start="2015-01-01").summary())
+```
+
+| call | question it answers |
+|---|---|
+| `check_identity(prices)` | recycled tickers: a dead company's history silently stitched to a new listing on the same symbol. Four such tickers moved a measured US result by 1.7 pp/yr, more than the survivorship bias itself |
+| `check_universe(prices, universe, start)` | the two signatures of today's list applied backwards: members whose data begins after the start date, and a universe whose start-alive names almost never die (measured death curves say they should) |
+
+`REFERENCES` now carries the measured US constants alongside the Indian ones: survivor-filter effect +0.4 to +1.0 pp/yr by vintage, yearly gaps swinging -7.5 to +3.5, and the 1.7 pp/yr identity error.
+
 ## What v0.1 ships
 
 | function | what it answers |
