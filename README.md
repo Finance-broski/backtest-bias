@@ -61,6 +61,40 @@ expect EW returns inflated roughly +0.8-3.2 pp/yr vs an honest universe (measure
 vintage-dependent; see backtest_bias.REFERENCES)
 ```
 
+## What v0.3 adds: is the choosing honest?
+
+The checks above ask whether the data is lying. `check_selection` asks whether the screen is:
+a rule that selects candidates on a window and reports an "out-of-sample" result on the last
+part of that same window has leaked the future into the selection, even with every hedge ratio
+and z-score computed walk-forward. Measured first on a US pairs screen, where one bit of future
+information, whether the full window also accepted the pair, was worth 13.9 log points a year
+and accounted for the entire apparent edge.
+
+```python
+from backtest_bias import check_selection
+
+# prices: wide (dates x symbols) or long; candidates: (y, x) pairs for the built-in pairs screen
+rep = check_selection(prices, candidates, hold=250, n_eras=6)
+print(rep.summary())
+# forward information of the rule: gap -0.0211 log points per era, positive in 1 of 6 eras
+# worth of one bit of future information: +0.1388 log points per era, positive in 6 of 6 eras
+# verdict: SEVERE - the full-history label carries forward information ...
+rep.eras        # per era: accept rate, accepted, matched rejected, gap
+rep.hindsight   # per era: also accepted on the full window vs not, and the difference
+```
+
+Draw the candidates from the population the screen chooses among, never from its stored accept
+and reject lists: a pool built from the screen's own labels carries the future already, and the
+clean gap comes out positive for that reason alone. On the PairDesk vintage, 3,000 population-drawn
+pairs reproduce the published shape with this code: clean gap -0.010 per era, positive in 2 of 6;
+hindsight +0.153 per era, positive in 6 of 6.
+
+Any screen is audited the same way by passing its own callables: `select(formation_window,
+candidates)`, `score(formation_window, hold_window, candidate)` and `match_key(formation_window,
+candidate)`. If you already hold the screen's acceptance on the full history (a stored vintage),
+pass it as `full_accepted`. The protocol and the measurements it was built on are written up in
+the PairDesk repository's SELECTION_LOOKAHEAD document.
+
 ## What v0.2 adds
 
 ```python
