@@ -161,10 +161,11 @@ def return_correlation(form: pd.DataFrame, pair: tuple) -> Optional[float]:
     return float(r[y].corr(r[x]))
 
 
-def _match(keys_acc: pd.Series, keys_rej: pd.Series, bins: int, rng: np.random.Generator) -> list:
-    """Quantile-match the rejected pool to the accepted arm on the nuisance key."""
+def _match(keys_acc: pd.Series, keys_rej: pd.Series, bins: int, rng: np.random.Generator):
+    """Quantile-match the rejected pool to the accepted arm on the nuisance key. Returns the
+    matched rejects and whether the key was usable (False means a plain random draw)."""
     if keys_acc.empty or keys_rej.empty:
-        return []
+        return [], False
     edges = np.unique(np.quantile(keys_acc.values, np.linspace(0, 1, bins + 1)))
     if len(edges) < 3:
         # a degenerate key (a tiny arm, or a constant): nothing to match on, so draw the same
@@ -172,7 +173,7 @@ def _match(keys_acc: pd.Series, keys_rej: pd.Series, bins: int, rng: np.random.G
         pool = list(keys_rej.index)
         take = min(len(keys_acc), len(pool))
         idx = rng.choice(len(pool), size=take, replace=False)
-        return [pool[i] for i in idx]
+        return [pool[i] for i in idx], False
     edges[0], edges[-1] = -np.inf, np.inf
     picked = []
     acc_bins = pd.cut(keys_acc, edges, include_lowest=True)
@@ -183,7 +184,7 @@ def _match(keys_acc: pd.Series, keys_rej: pd.Series, bins: int, rng: np.random.G
             take = min(int(k), len(pool))
             idx = rng.choice(len(pool), size=take, replace=False)
             picked.extend(pool[i] for i in idx)
-    return picked
+    return picked, True
 
 
 def _permutation_p(groups, rng, n_perm: int = 999) -> float:
@@ -227,6 +228,7 @@ class SelectionReport:
     full_window_inflation_mean: float  # how much a full-window 'out-of-sample' figure overstates the honest one
     match_balance: float               # mean |key gap| between the arms; small means the matching held
     identical_label_eras: int          # eras in which the full window dropped no in-era accept
+    unmatched_eras: int                # eras where the nuisance key could not be used to match
     severity: str                      # "clean" | "warn" | "severe"
     detail: str
     unit: str = "log points per era"
@@ -319,6 +321,7 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     era_rows, hind_rows = [], []
     gap_groups, hind_groups = [], []
     identical_label_eras = 0
+    unmatched_eras = 0
     T = len(panel)
     for e in range(n_eras):
         end = T - e * hold
@@ -330,12 +333,14 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         rejected = [c for c in cands if c not in accepted]
         keys_acc = pd.Series({c: match_key(form, c) for c in accepted}).dropna()
         keys_rej = pd.Series({c: match_key(form, c) for c in rejected}).dropna()
-        matched = _match(keys_acc, keys_rej, match_bins, rng)
+        matched, matched_on_key = _match(keys_acc, keys_rej, match_bins, rng)
         sc_acc = pd.Series({c: score(form, held, c) for c in accepted}).dropna()
         sc_rej = pd.Series({c: score(form, held, c) for c in matched}).dropna()
         if len(sc_acc) < min_arm or len(sc_rej) < min_arm:
             continue
         gap_groups.append((sc_acc.values.astype(float), sc_rej.values.astype(float)))
+        if not matched_on_key:
+            unmatched_eras += 1
         key_acc_mean = float(keys_acc.reindex(sc_acc.index).mean()) if len(keys_acc) else float("nan")
         key_rej_mean = float(keys_rej.reindex(sc_rej.index).mean()) if len(keys_rej) else float("nan")
         era_rows.append(dict(era=f"era {e + 1} back", accept_rate=len(accepted) / max(len(cands), 1),
@@ -419,6 +424,10 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         detail += (f"; the rule itself shows no forward information (gap {gap_mean:+.4f}, positive in "
                    f"{gap_pos} of {n_eras_done} eras, permutation p {gap_p:.3f}), which is a finding "
                    f"about the rule, not a fault in the data")
+    if unmatched_eras:
+        detail += (f"; in {unmatched_eras} of {n_eras_done} eras the nuisance key could not be used "
+                   f"(constant, or too few accepts), so rejects were drawn at random there and the "
+                   f"clean gap in those eras is not relatedness-matched")
     if balance == balance and balance > 0.10:
         detail += (f"; matching on the nuisance key is loose (mean key gap {balance:.2f} between the "
                    f"arms), so part of the clean gap may be relatedness rather than selection")
@@ -427,5 +436,6 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                            hindsight=hind, hindsight_mean=h_mean, hindsight_positive_eras=h_pos,
                            n_hindsight_eras=len(hind), hindsight_t=h_t, hindsight_p=h_p,
                            full_window_inflation_mean=infl, match_balance=balance,
-                           identical_label_eras=identical_label_eras, severity=sev, detail=detail,
+                           identical_label_eras=identical_label_eras, unmatched_eras=unmatched_eras,
+                           severity=sev, detail=detail,
                            unit=unit)

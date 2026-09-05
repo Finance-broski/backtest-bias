@@ -250,3 +250,14 @@ def test_real_leak_gets_a_small_permutation_p():
                           min_form=MIN_FORM, min_arm=3, min_split=3, n_perm=499, seed=1)
     assert rep.hindsight_p < 0.05
     assert rep.clean_gap_p == rep.clean_gap_p
+
+
+def test_unusable_match_key_is_reported_not_hidden():
+    rng = np.random.default_rng(31)
+    panel, cands = _noise_panel(60, rng)
+    rep = check_selection(np.exp(panel), cands, select=lambda f, c: set(c[::3]),
+                          score=lambda f, h, p: float(h[p[0]].iloc[-1] - h[p[0]].iloc[0]),
+                          match_key=lambda f, p: 0.0, hold=HOLD, n_eras=N_ERAS, min_form=MIN_FORM,
+                          min_arm=3, labels_reported_in_era=True)
+    assert rep.unmatched_eras == rep.n_eras
+    assert "could not be used" in rep.detail
