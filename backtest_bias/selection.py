@@ -236,19 +236,28 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                   wide frames on a datetime index are recognised; a wide frame on any other index
                   needs `wide=True`, because a long frame with unnamed numeric columns would
                   otherwise be mistaken for one. Log-transformed unless `log_prices=False`.
-    unit          the unit of what `score` returns, printed in the report. The default score
-                  returns log points per era; a score in currency or percent should say so.
     candidates    the things the screen chooses among; (y, x) tuples for the default pairs screen.
                   Draw them from the population, not from the screen's stored accept/reject lists.
     select        select(formation_window, candidates) -> accepted candidates, using the window ONLY.
     score         score(formation_window, hold_window, candidate) -> forward outcome or None.
     match_key     match_key(formation_window, candidate) -> nuisance value to match rejects on.
+    hold          sessions per era; each era is scored on exactly this many rows.
+    n_eras        how many eras to walk backwards from the end of the history.
+    min_form      the shortest formation window an era may have; earlier eras are skipped.
+    match_bins    quantile bins of the nuisance key used to match rejects to accepts.
+    min_arm       the fewest scored candidates an arm may have for the era to count.
     full_accepted the screen's acceptance on the whole history, if you already have it (the stored
                   vintage); otherwise `select` is run on the full panel to obtain it.
+    log_prices    take logs of the panel first (the default; the built-in callables expect logs).
     labels_reported_in_era
                   set True if the figures you have REPORTED were computed with labels recomputed
                   inside each era already. The hindsight numbers are then informational (what a
                   full-window label would have cost) and the verdict does not condemn them.
+    wide          the frame is already dates x symbols; skip the long-format sniff.
+    unit          the unit of what `score` returns, printed in the report. The default score
+                  returns log points per era; a score in currency or percent should say so.
+    seed          for the matching draw only; the screen and the scores are deterministic given
+                  the callables.
 
     Three numbers come back. The clean gap is what the rule knows about the forward period when it
     cannot see it. The hindsight difference is the worth of one bit of future information, and it

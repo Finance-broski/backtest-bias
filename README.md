@@ -63,41 +63,68 @@ vintage-dependent; see backtest_bias.REFERENCES)
 
 ## What v0.3 adds: is the choosing honest?
 
-The checks above ask whether the data is lying. `check_selection` asks whether the screen is:
-a rule that selects candidates on a window and reports an "out-of-sample" result on the last
-part of that same window has leaked the future into the selection, even with every hedge ratio
-and z-score computed walk-forward. Measured first on a US pairs screen, where one bit of future
-information, whether the full window also accepted the pair, was worth 13.9 log points a year
-and accounted for the entire apparent edge.
+The checks above ask whether the data is lying. `check_selection` asks whether the screen is.
+
+A screen selects candidates on a window of history. If it then reports an "out-of-sample" result
+on the last part of that same window, the future has leaked into the selection, even when every
+hedge ratio and z-score was computed walk-forward. The leak is in the choosing, not in the
+arithmetic, so no data hygiene removes it. Measured first on a US pairs screen, where the answer
+to one question, would this pair also have been accepted with the test year included, was worth
+13.9 log points a year and accounted for the entire apparent edge.
+
+**How the check works.** It walks your history backwards in eras (250 sessions by default). In
+each era the screen sees only the data before it, the formation window, and accepts or rejects
+every candidate on that alone. Both groups are then scored forward through the era, with the
+rejected group matched to the accepted one on return correlation so the comparison is not a
+comparison of relatedness. Three numbers come back:
+
+- **the clean gap**: accepted minus matched rejected, with labels recomputed inside each era.
+  This is what the rule knows about the forward period when it cannot see it.
+- **the hindsight difference**: among candidates accepted in era, the forward outcome of those
+  the full-history screen also accepts, minus those it does not. Both groups passed the same test
+  on the same evidence; the only difference is information from the future. This is what one bit
+  of the future is worth, and it is the number that condemns a screen.
+- **the full-window inflation**: how much an "out-of-sample" figure computed on full-history
+  acceptance overstates the honest in-era figure.
 
 ```python
 from backtest_bias import check_selection
 
-# prices: wide (dates x symbols) or long; candidates: (y, x) pairs for the built-in pairs screen
+# prices: long (date, symbol, close) or wide (dates x symbols) on a datetime index
+# candidates: a few thousand drawn from the population the screen chooses among
+candidates = [("KO", "PEP"), ("XOM", "CVX"), ("V", "MA")]     # (y, x) pairs for the built-in screen
 rep = check_selection(prices, candidates, hold=250, n_eras=6)
 print(rep.summary())
-# forward information of the rule: gap -0.0211 log points per era, positive in 1 of 6 eras
-# worth of one bit of future information: +0.1388 log points per era, positive in 6 of 6 eras
-# a full-window 'out-of-sample' figure overstates the honest one by +0.1121 log points per era
-# verdict: SEVERE - the full-history label carries forward information ...
-rep.eras        # per era: accept rate, accepted, matched rejected, gap
-rep.hindsight   # per era: also accepted on the full window vs not, and the difference
 ```
 
-Draw the candidates from the population the screen chooses among, never from its stored accept
-and reject lists: a pool built from the screen's own labels carries the future already, and the
-clean gap comes out positive for that reason alone. On the PairDesk vintage, 3,000 population-drawn
-pairs reproduce the published shape with this code: clean gap -0.010 per era, positive in 2 of 6;
-hindsight +0.153 per era, positive in 6 of 6; a full-window figure overstates the honest one by
-+0.112 per era.
+On a 3,000-pair sample of the PairDesk vintage, the summary reads:
+
+```
+selection look-ahead check: 3000 candidates, 6 eras of 250 sessions, labels recomputed inside each era
+forward information of the rule: gap -0.0103 log points per era, positive in 2 of 6 eras
+worth of one bit of future information: +0.1531 log points per era, positive in 6 of 6 eras (cross-era t +4.90, eras overlap, do not quote it as one)
+a full-window 'out-of-sample' figure overstates the honest one by +0.1121 log points per era
+verdict: SEVERE - the full-history label carries forward information worth +0.1531 per era, positive in 6 of 6 eras; ...
+```
+
+`rep.eras` holds the per-era table (accept rate, both arms, the gap, the match balance) and
+`rep.hindsight` the per-era split. The published protocol found -0.021 and +0.139 on a different
+6,000-pair sample; same shape.
+
+Two rules for reading it. Draw the candidates from the population the screen chooses among, never
+from its stored accept and reject lists: a pool built from the screen's own labels already carries
+the future, and the clean gap comes out positive and meaningless. And a negative clean gap on
+noise is not a fault: a pair accepted on its formation window has a formation deviation that
+understates its forward deviation, so a fixed rule trades it more and pays more cost.
 
 Any screen is audited the same way by passing its own callables: `select(formation_window,
 candidates)`, `score(formation_window, hold_window, candidate)` and `match_key(formation_window,
-candidate)`. If you already hold the screen's acceptance on the full history (a stored vintage),
-pass it as `full_accepted`. If the figures you have reported were computed with labels
-recomputed inside each era already, say so with `labels_reported_in_era=True`: the hindsight
-number is then informational and the verdict does not condemn them. The protocol and the measurements it was built on are written up in
-the PairDesk repository's SELECTION_LOOKAHEAD document.
+candidate)`, with `unit` naming what the score returns. If you already hold the screen's acceptance
+on the full history, pass it as `full_accepted`. If the figures you have reported were computed with
+labels recomputed inside each era already, say so with `labels_reported_in_era=True`; the hindsight
+number is then informational and the verdict does not condemn them. The protocol and the
+measurements behind it are written up in the
+[PairDesk repository](https://github.com/Finance-broski/pairdesk/blob/main/SELECTION_LOOKAHEAD.md).
 
 ## What v0.2 adds
 
