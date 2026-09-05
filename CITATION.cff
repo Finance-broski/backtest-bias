@@ -6,13 +6,13 @@ authors:
   - family-names: Jain
     given-names: Ayan
     website: "https://financebroski.com/"
-doi: 10.5281/zenodo.21770386
+doi: 10.5281/zenodo.22373468
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.21770386
+    value: 10.5281/zenodo.22373468
     description: "Concept DOI, always resolves to the latest version"
   - type: doi
-    value: 10.5281/zenodo.21770387
+    value: 10.5281/zenodo.22373468
     description: "Version DOI for v0.1.2"
 repository-code: "https://github.com/Finance-broski/backtest-bias"
 url: "https://financebroski.com/"
