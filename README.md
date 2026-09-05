@@ -129,9 +129,9 @@ histories. Anything the library cannot judge honestly, it raises instead of gues
 
 ## Roadmap
 
-- **v0.2**: look-ahead / point-in-time violations: fundamentals dated by period instead of
-  announcement, index membership applied backwards, same-bar signal fills
-- **v0.3**: rename-continuity and corporate-action gap detection
+- **v0.4**: price-level look-ahead and timestamp checks: fundamentals dated by period instead of
+  announcement, same-bar signal fills
+- **v0.5**: corporate-action gap detection
 
 ## Who, and how to get this run on your own data
 

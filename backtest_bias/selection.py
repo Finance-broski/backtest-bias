@@ -188,6 +188,7 @@ class SelectionReport:
     hindsight: pd.DataFrame            # per era: also_accepted_full, not_accepted_full, difference
     hindsight_mean: float              # the worth of one bit of future information
     hindsight_positive_eras: int
+    n_hindsight_eras: int              # eras in which both split groups existed
     hindsight_t: float                 # cross-era t, for scale only; eras are not independent
     full_window_inflation_mean: float  # how much a full-window 'out-of-sample' figure overstates the honest one
     severity: str                      # "clean" | "warn" | "severe"
@@ -200,7 +201,7 @@ class SelectionReport:
                  f"forward information of the rule: gap {self.clean_gap_mean:+.4f} {self.unit}, "
                  f"positive in {self.clean_gap_positive_eras} of {self.n_eras} eras",
                  f"worth of one bit of future information: {self.hindsight_mean:+.4f} {self.unit}, "
-                 f"positive in {self.hindsight_positive_eras} of {self.n_eras} eras "
+                 f"positive in {self.hindsight_positive_eras} of {self.n_hindsight_eras} eras "
                  f"(cross-era t {self.hindsight_t:+.2f}, eras overlap, do not quote it as one)",
                  f"a full-window 'out-of-sample' figure overstates the honest one by "
                  f"{self.full_window_inflation_mean:+.4f} {self.unit}",
@@ -230,15 +231,16 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     full_accepted the screen's acceptance on the whole history, if you already have it (the stored
                   vintage); otherwise `select` is run on the full panel to obtain it.
 
-    Two numbers come back. The clean gap is what the rule knows about the forward period when it
-    cannot see it. The hindsight difference is how much a full-history label inflates an
-    "out-of-sample" figure, and it is the one that condemns a screen."""
+    Three numbers come back. The clean gap is what the rule knows about the forward period when it
+    cannot see it. The hindsight difference is the worth of one bit of future information, and it
+    is the one that condemns a screen. The full-window inflation is how much a full-history
+    "out-of-sample" figure overstates the honest in-era one."""
     w = to_wide(prices, **to_wide_kw)
     if log_prices:
         w = w.where(w > 0)               # a zero or negative print is a data fault, not a log of it
     panel = np.log(w) if log_prices else w.copy()
     panel = panel.sort_index()
-    cands = list(candidates)
+    cands = list(dict.fromkeys(candidates))   # order kept, duplicates dropped
     rng = np.random.default_rng(seed)
     full = set(full_accepted) if full_accepted is not None else set(select(panel, cands))
 
@@ -314,5 +316,6 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                    f"in the data")
     return SelectionReport(n_candidates=len(cands), n_eras=n_eras_done, hold=hold, eras=eras,
                            clean_gap_mean=gap_mean, clean_gap_positive_eras=gap_pos, hindsight=hind,
-                           hindsight_mean=h_mean, hindsight_positive_eras=h_pos, hindsight_t=h_t,
+                           hindsight_mean=h_mean, hindsight_positive_eras=h_pos, n_hindsight_eras=len(hind),
+                           hindsight_t=h_t,
                            full_window_inflation_mean=infl, severity=sev, detail=detail)
