@@ -291,7 +291,8 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     wide          the frame is already dates x symbols; skip the long-format sniff.
     unit          the unit of what `score` returns, printed in the report. The default score
                   returns log points per era; a score in currency or percent should say so.
-    n_perm        shuffles for the within-era permutation p-values.
+    n_perm        shuffles for the within-era permutation p-values; their resolution is 1/(n_perm+1),
+                  so 999 resolves 0.001 and a size check at the 1% tail needs at least that many.
     seed          for the matching draw and the permutations; the screen and the scores are
                   deterministic given the callables.
 
