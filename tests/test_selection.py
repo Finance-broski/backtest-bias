@@ -223,3 +223,30 @@ def test_eras_are_disjoint_contiguous_and_end_at_the_last_row():
         assert earlier[3] == later[1] or earlier[3] < later[2]       # and touch the next formation end
     for b in bounds:
         assert b[1] < b[2]                                           # formation ends before the era
+
+
+def test_false_severe_rate_with_adequate_groups_is_low():
+    """A random label with LARGE groups on both sides is the null the verdict must survive. Eight
+    draws; a verdict that condemned by coin-flip would read severe about one draw in nine."""
+    rng = np.random.default_rng(23)
+    panel, cands = _noise_panel(300, rng)
+    severe, ps = 0, []
+    for k in range(8):
+        placebo = set(cands[i] for i in np.random.default_rng(700 + k).choice(len(cands), 150, replace=False))
+        rep = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
+                              min_form=MIN_FORM, min_arm=3, min_split=3, n_perm=199, seed=k,
+                              full_accepted=placebo)
+        severe += rep.severity == "severe"
+        if rep.hindsight_p == rep.hindsight_p:
+            ps.append(rep.hindsight_p)
+    assert severe <= 1
+    assert ps and 0.15 < float(np.mean(ps)) < 0.85          # p-values look uniform, not piled at zero
+
+
+def test_real_leak_gets_a_small_permutation_p():
+    rng = np.random.default_rng(3)
+    panel, cands = _noise_panel(300, rng)
+    rep = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
+                          min_form=MIN_FORM, min_arm=3, min_split=3, n_perm=499, seed=1)
+    assert rep.hindsight_p < 0.05
+    assert rep.clean_gap_p == rep.clean_gap_p

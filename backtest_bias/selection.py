@@ -25,8 +25,10 @@ apparent edge, 13.9 log points a year):
      report prints the inflation as its own number.
 
 Adjacent eras share most of their formation data, so gaps across eras are not independent
-observations. The honest strength claim is the count of eras in which the sign holds, which is
-what the report leads with; a cross-era t is reported for scale and should not be quoted as one.
+observations, and a sign count alone is weak: a fair coin lands five of six 11% of the time. The
+strength claim is a permutation p computed by shuffling group membership WITHIN each era, which
+keeps every era's sizes and distribution and assumes nothing across eras; the sign count is
+printed beside it and a cross-era t is shown for scale only.
 
 Two things to know before reading a result. A negative clean gap on pure noise is not a fault:
 a pair accepted on its formation window has, by selection, a spread whose formation deviation
@@ -184,6 +186,29 @@ def _match(keys_acc: pd.Series, keys_rej: pd.Series, bins: int, rng: np.random.G
     return picked
 
 
+def _permutation_p(groups, rng, n_perm: int = 999) -> float:
+    """One-sided p for a mean-over-eras difference, by shuffling group membership WITHIN each era.
+
+    `groups` is a list of (a, b) arrays per era. The statistic is the mean over eras of
+    mean(a) - mean(b). Shuffling within eras keeps every era's sizes and its own distribution, so
+    nothing is assumed about independence across eras or about the shape of the outcomes; the p is
+    the share of shuffles that reach the observed statistic. It replaces a sign count, which a fair
+    coin passes at five of six eras 11% of the time."""
+    if not groups:
+        return float("nan")
+    obs = float(np.mean([a.mean() - b.mean() for a, b in groups]))
+    pooled = [(np.concatenate([a, b]), len(a)) for a, b in groups]
+    hits = 0
+    for _ in range(n_perm):
+        stat = 0.0
+        for arr, na in pooled:
+            perm = rng.permutation(arr)
+            stat += perm[:na].mean() - perm[na:].mean()
+        if stat / len(pooled) >= obs:
+            hits += 1
+    return (hits + 1) / (n_perm + 1)
+
+
 @dataclass
 class SelectionReport:
     n_candidates: int
@@ -192,11 +217,13 @@ class SelectionReport:
     eras: pd.DataFrame                 # per era: accept_rate, accepted, rejected_matched, gap, n
     clean_gap_mean: float              # accepted minus matched rejected, labels recomputed in era
     clean_gap_positive_eras: int
+    clean_gap_p: float                 # within-era permutation p, one-sided, for the gap
     hindsight: pd.DataFrame            # per era: also_accepted_full, not_accepted_full, difference
     hindsight_mean: float              # the worth of one bit of future information
     hindsight_positive_eras: int
     n_hindsight_eras: int              # eras in which both split groups existed
     hindsight_t: float                 # cross-era t, for scale only; eras are not independent
+    hindsight_p: float                 # within-era permutation p, one-sided, for the difference
     full_window_inflation_mean: float  # how much a full-window 'out-of-sample' figure overstates the honest one
     match_balance: float               # mean |key gap| between the arms; small means the matching held
     identical_label_eras: int          # eras in which the full window dropped no in-era accept
@@ -208,10 +235,11 @@ class SelectionReport:
         lines = [f"selection look-ahead check: {self.n_candidates} candidates, {self.n_eras} eras "
                  f"of {self.hold} sessions, labels recomputed inside each era",
                  f"forward information of the rule: gap {self.clean_gap_mean:+.4f} {self.unit}, "
-                 f"positive in {self.clean_gap_positive_eras} of {self.n_eras} eras",
+                 f"positive in {self.clean_gap_positive_eras} of {self.n_eras} eras, permutation p {self.clean_gap_p:.3f}",
                  f"worth of one bit of future information: {self.hindsight_mean:+.4f} {self.unit}, "
-                 f"positive in {self.hindsight_positive_eras} of {self.n_hindsight_eras} eras "
-                 f"(cross-era t {self.hindsight_t:+.2f}, eras overlap, do not quote it as one)",
+                 f"positive in {self.hindsight_positive_eras} of {self.n_hindsight_eras} eras, "
+                 f"within-era permutation p {self.hindsight_p:.3f} "
+                 f"(cross-era t {self.hindsight_t:+.2f} for scale only; eras overlap)",
                  f"a full-window 'out-of-sample' figure overstates the honest one by "
                  f"{self.full_window_inflation_mean:+.4f} {self.unit}",
                  f"verdict: {self.severity.upper()} - {self.detail}"]
@@ -226,7 +254,7 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                     select: Callable = eg_both_ways, score: Callable = zscore_rule_pnl,
                     match_key: Callable = return_correlation, hold: int = 250, n_eras: int = 6,
                     min_form: int = 750, match_bins: int = 10, min_arm: int = 5,
-                    min_split: int = 10,
+                    min_split: int = 10, n_perm: int = 999,
                     full_accepted: Optional[Iterable[Hashable]] = None, log_prices: bool = True,
                     labels_reported_in_era: bool = False, wide: bool = False,
                     unit: str = "log points per era", seed: int = 41,
@@ -261,8 +289,9 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     wide          the frame is already dates x symbols; skip the long-format sniff.
     unit          the unit of what `score` returns, printed in the report. The default score
                   returns log points per era; a score in currency or percent should say so.
-    seed          for the matching draw only; the screen and the scores are deterministic given
-                  the callables.
+    n_perm        shuffles for the within-era permutation p-values.
+    seed          for the matching draw and the permutations; the screen and the scores are
+                  deterministic given the callables.
 
     Three numbers come back. The clean gap is what the rule knows about the forward period when it
     cannot see it. The hindsight difference is the worth of one bit of future information, and it
@@ -288,6 +317,7 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     full = (set(full_accepted) if full_accepted is not None else set(select(panel, cands))) & set(cands)
 
     era_rows, hind_rows = [], []
+    gap_groups, hind_groups = [], []
     identical_label_eras = 0
     T = len(panel)
     for e in range(n_eras):
@@ -305,6 +335,7 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         sc_rej = pd.Series({c: score(form, held, c) for c in matched}).dropna()
         if len(sc_acc) < min_arm or len(sc_rej) < min_arm:
             continue
+        gap_groups.append((sc_acc.values.astype(float), sc_rej.values.astype(float)))
         key_acc_mean = float(keys_acc.reindex(sc_acc.index).mean()) if len(keys_acc) else float("nan")
         key_rej_mean = float(keys_rej.reindex(sc_rej.index).mean()) if len(keys_rej) else float("nan")
         era_rows.append(dict(era=f"era {e + 1} back", accept_rate=len(accepted) / max(len(cands), 1),
@@ -318,6 +349,7 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         if len(notf) == 0:
             identical_label_eras += 1      # the full window dropped nothing: no bit to measure
         if len(also) >= min_split and len(notf) >= min_split:
+            hind_groups.append((also.values.astype(float), notf.values.astype(float)))
             hind_rows.append(dict(era=f"era {e + 1} back", n_also=len(also), n_not=len(notf),
                                   also_accepted_full=float(also.mean()),
                                   not_accepted_full=float(notf.mean()),
@@ -332,13 +364,15 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                          f"{min_arm} scored candidates per arm")
     gap_mean = float(eras.gap.mean())
     gap_pos = int((eras.gap > 0).sum())
+    gap_p = _permutation_p(gap_groups, rng, n_perm)
     if len(hind):
         h_mean = float(hind.difference.mean())
         h_pos = int((hind.difference > 0).sum())
         h_t = float(h_mean / (hind.difference.std(ddof=1) / np.sqrt(len(hind)))) if len(hind) > 1 and hind.difference.std(ddof=1) > 0 else float("nan")
         infl = float(hind.full_window_inflation.mean())
+        h_p = _permutation_p(hind_groups, rng, n_perm)
     else:
-        h_mean, h_pos, h_t, infl = float("nan"), 0, float("nan"), float("nan")
+        h_mean, h_pos, h_t, infl, h_p = float("nan"), 0, float("nan"), float("nan"), float("nan")
 
     # Verdict. The condemning signature is a hindsight difference that is positive in nearly every
     # era: the full-history label knows the future. It condemns REPORTED figures only if they were
@@ -347,8 +381,8 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     # honest, it is just not an edge.
     balance = float((eras.match_key_accepted - eras.match_key_rejected).abs().mean()) \
         if eras.match_key_accepted.notna().any() else float("nan")
-    leak_shape = (len(hind) >= 3 and h_pos >= max(3, int(np.ceil(0.8 * len(hind)))) and h_mean > 0)
-    weak_shape = (len(hind) >= 3 and h_mean > 0 and h_pos > len(hind) / 2)
+    leak_shape = (len(hind) >= 3 and h_mean > 0 and h_p <= 0.05 and h_pos >= int(np.ceil(0.6 * len(hind))))
+    weak_shape = (len(hind) >= 3 and h_mean > 0 and h_p <= 0.20)
     if identical_label_eras == n_eras_done:
         sev = "clean"
         detail = ("in-era and full-window labels are identical in every era, so there is no bit of "
@@ -366,12 +400,14 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     elif leak_shape:
         sev = "severe"
         detail = (f"the full-history label carries forward information worth {h_mean:+.4f} per era, "
-                  f"positive in {h_pos} of {len(hind)} eras; any 'out-of-sample' figure computed on "
-                  f"candidates selected on the full window is overstated by {infl:+.4f} per era")
+                  f"positive in {h_pos} of {len(hind)} eras, permutation p {h_p:.3f}; any 'out-of-sample' "
+                  f"figure computed on candidates selected on the full window is overstated by "
+                  f"{infl:+.4f} per era")
     elif weak_shape:
         sev = "warn"
-        detail = (f"the full-history label adds {h_mean:+.4f} per era in {h_pos} of {len(hind)} eras; "
-                  f"report only figures computed with labels recomputed inside each era")
+        detail = (f"the full-history label adds {h_mean:+.4f} per era in {h_pos} of {len(hind)} eras "
+                  f"(permutation p {h_p:.3f}); report only figures computed with labels recomputed "
+                  f"inside each era")
     elif len(hind) < 3:
         sev = "warn"
         detail = (f"only {len(hind)} era(s) had both split groups of at least {min_split}; extend "
@@ -379,17 +415,17 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     else:
         sev = "clean"
         detail = "full-history and in-era labels lead to the same forward outcomes"
-    if gap_pos <= n_eras_done / 2 or gap_mean <= 0:
+    if gap_mean <= 0 or gap_p > 0.05:
         detail += (f"; the rule itself shows no forward information (gap {gap_mean:+.4f}, positive in "
-                   f"{gap_pos} of {n_eras_done} eras), which is a finding about the rule, not a fault "
-                   f"in the data")
+                   f"{gap_pos} of {n_eras_done} eras, permutation p {gap_p:.3f}), which is a finding "
+                   f"about the rule, not a fault in the data")
     if balance == balance and balance > 0.10:
         detail += (f"; matching on the nuisance key is loose (mean key gap {balance:.2f} between the "
                    f"arms), so part of the clean gap may be relatedness rather than selection")
     return SelectionReport(n_candidates=len(cands), n_eras=n_eras_done, hold=hold, eras=eras,
-                           clean_gap_mean=gap_mean, clean_gap_positive_eras=gap_pos, hindsight=hind,
-                           hindsight_mean=h_mean, hindsight_positive_eras=h_pos, n_hindsight_eras=len(hind),
-                           hindsight_t=h_t,
+                           clean_gap_mean=gap_mean, clean_gap_positive_eras=gap_pos, clean_gap_p=gap_p,
+                           hindsight=hind, hindsight_mean=h_mean, hindsight_positive_eras=h_pos,
+                           n_hindsight_eras=len(hind), hindsight_t=h_t, hindsight_p=h_p,
                            full_window_inflation_mean=infl, match_balance=balance,
                            identical_label_eras=identical_label_eras, severity=sev, detail=detail,
                            unit=unit)

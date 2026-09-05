@@ -12,6 +12,10 @@
   other screen is audited by passing its own `select`, `score` and `match_key`.
 - Reproduced on the PairDesk US vintage with a population-drawn 3,000-pair pool: clean gap
   -0.010 per era (2 of 6 positive), hindsight +0.153 per era (6 of 6 positive), full-window inflation +0.112 per era.
+- The verdict rests on a within-era permutation p-value for both numbers, not on a sign count
+  (a fair coin lands five eras of six 11% of the time); the hindsight split counts an era only
+  when both groups have at least `min_split` members (default ten), after a placebo label on the
+  real vintage read SEVERE by chance with five-pair groups.
 - Reports lead with the count of eras in which the sign holds; cross-era t is printed for
   scale only, because adjacent formation windows overlap.
 

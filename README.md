@@ -101,14 +101,16 @@ On a 3,000-pair sample of the PairDesk vintage, the summary reads:
 
 ```
 selection look-ahead check: 3000 candidates, 6 eras of 250 sessions, labels recomputed inside each era
-forward information of the rule: gap -0.0103 log points per era, positive in 2 of 6 eras
-worth of one bit of future information: +0.1531 log points per era, positive in 6 of 6 eras (cross-era t +4.90, eras overlap, do not quote it as one)
+forward information of the rule: gap -0.0103 log points per era, positive in 2 of 6 eras, permutation p 0.777
+worth of one bit of future information: +0.1531 log points per era, positive in 6 of 6 eras, within-era permutation p 0.001 (cross-era t +4.90 for scale only; eras overlap)
 a full-window 'out-of-sample' figure overstates the honest one by +0.1121 log points per era
-verdict: SEVERE - the full-history label carries forward information worth +0.1531 per era, positive in 6 of 6 eras; ...
+verdict: SEVERE - the full-history label carries forward information worth +0.1531 per era, positive in 6 of 6 eras, permutation p 0.001; ...
 ```
 
 `rep.eras` holds the per-era table (accept rate, both arms, the gap, the match balance) and
-`rep.hindsight` the per-era split. The published protocol found -0.021 and +0.139 on a different
+`rep.hindsight` the per-era split. The p-values come from shuffling group membership within each
+era, which assumes nothing across eras; a label with no information about the future reads clean
+under them, which was checked with placebo labels on the same sample. The published protocol found -0.021 and +0.139 on a different
 6,000-pair sample; same shape.
 
 Two rules for reading it. Draw the candidates from the population the screen chooses among, never
