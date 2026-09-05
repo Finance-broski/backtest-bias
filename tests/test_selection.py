@@ -62,7 +62,7 @@ def test_noise_has_no_forward_information_but_full_label_knows_the_future():
     rng = np.random.default_rng(3)
     panel, cands = _noise_panel(300, rng)
     rep = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
-                          min_form=MIN_FORM, min_arm=3, seed=1)
+                          min_form=MIN_FORM, min_arm=3, min_split=3, seed=1)
     assert isinstance(rep, SelectionReport)
     assert rep.n_eras >= 2
     # the honest rule cannot rank noise: the clean gap is small either way
@@ -117,9 +117,9 @@ def test_full_accepted_can_be_supplied_from_a_stored_vintage():
     panel, cands = _noise_panel(300, rng)
     stored = eg10(panel, cands)
     rep = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
-                          min_form=MIN_FORM, min_arm=3, full_accepted=stored)
+                          min_form=MIN_FORM, min_arm=3, min_split=3, full_accepted=stored)
     rep2 = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
-                           min_form=MIN_FORM, min_arm=3)
+                           min_form=MIN_FORM, min_arm=3, min_split=3)
     assert rep.hindsight_mean == pytest.approx(rep2.hindsight_mean)
 
 
@@ -127,7 +127,7 @@ def test_in_era_labels_make_the_hindsight_number_informational():
     rng = np.random.default_rng(3)
     panel, cands = _noise_panel(300, rng)
     rep = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
-                          min_form=MIN_FORM, min_arm=3, seed=1, labels_reported_in_era=True)
+                          min_form=MIN_FORM, min_arm=3, min_split=3, seed=1, labels_reported_in_era=True)
     assert rep.hindsight_mean > 0                 # the number is still measured
     assert rep.severity == "clean"                # but it does not condemn in-era reporting
     assert "in-era labels" in rep.detail
@@ -173,3 +173,53 @@ def test_select_output_outside_the_candidate_list_does_not_distort_the_rate():
     assert (rep.eras.accept_rate <= 1.0).all()
     assert rep.eras.n_accepted.max() <= 5
     assert rep.unit == "log return of the y leg per era" and rep.unit in rep.summary()
+
+
+def test_placebo_label_carries_no_future_information():
+    """Replace the full-history label with a random half of the candidates. It knows nothing about
+    the future, so it must never read as severe: either the split groups are too thin to count, or
+    the difference is near zero with the sign holding in about half the eras."""
+    rng = np.random.default_rng(13)
+    panel, cands = _noise_panel(300, rng)
+    means, verdicts = [], []
+    for k in range(4):
+        placebo = set(cands[i] for i in np.random.default_rng(100 + k).choice(len(cands), 150, replace=False))
+        rep = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
+                              min_form=MIN_FORM, min_arm=3, min_split=3, seed=k, full_accepted=placebo)
+        verdicts.append(rep.severity)
+        if rep.hindsight_mean == rep.hindsight_mean:
+            means.append(rep.hindsight_mean)
+    assert "severe" not in verdicts
+    if means:
+        assert abs(float(np.mean(means))) < 0.06
+    # the real full-window label on the same panel does carry the future
+    real = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
+                           min_form=MIN_FORM, min_arm=3, min_split=3, seed=1)
+    assert real.hindsight_mean > 0.03
+
+
+def test_eras_are_disjoint_contiguous_and_end_at_the_last_row():
+    rng = np.random.default_rng(17)
+    panel, cands = _noise_panel(30, rng)
+    seen = []
+
+    def select_half(form, candidates):            # leaves rejects to match against
+        return set(candidates[::2])
+
+    def record_bounds(form, hold, pair):
+        seen.append((int(form.index[0].toordinal()), int(form.index[-1].toordinal()),
+                     int(hold.index[0].toordinal()), int(hold.index[-1].toordinal()), len(hold)))
+        return 0.0
+
+    check_selection(np.exp(panel), cands, select=select_half, score=record_bounds,
+                    match_key=lambda f, p: 0.0, hold=HOLD, n_eras=N_ERAS, min_form=MIN_FORM,
+                    min_arm=1, labels_reported_in_era=True)
+    bounds = sorted(set(seen), key=lambda b: -b[2])
+    assert len(bounds) == N_ERAS
+    assert all(b[4] == HOLD for b in bounds)                       # every era has exactly `hold` rows
+    assert bounds[0][3] == panel.index[-1].toordinal()             # era 1 ends on the last row
+    for later, earlier in zip(bounds, bounds[1:]):
+        assert earlier[3] < later[2]                                 # eras do not overlap
+        assert earlier[3] == later[1] or earlier[3] < later[2]       # and touch the next formation end
+    for b in bounds:
+        assert b[1] < b[2]                                           # formation ends before the era

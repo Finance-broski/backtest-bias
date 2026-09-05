@@ -226,6 +226,7 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                     select: Callable = eg_both_ways, score: Callable = zscore_rule_pnl,
                     match_key: Callable = return_correlation, hold: int = 250, n_eras: int = 6,
                     min_form: int = 750, match_bins: int = 10, min_arm: int = 5,
+                    min_split: int = 10,
                     full_accepted: Optional[Iterable[Hashable]] = None, log_prices: bool = True,
                     labels_reported_in_era: bool = False, wide: bool = False,
                     unit: str = "log points per era", seed: int = 41,
@@ -246,6 +247,10 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     min_form      the shortest formation window an era may have; earlier eras are skipped.
     match_bins    quantile bins of the nuisance key used to match rejects to accepts.
     min_arm       the fewest scored candidates an arm may have for the era to count.
+    min_split     the fewest candidates each side of the hindsight split may have for that era's
+                  split to count. A label that overlaps the in-era accepts in a handful of pairs
+                  produces a difference that is mostly noise, and noise runs to five positive
+                  eras in six more often than a verdict can afford.
     full_accepted the screen's acceptance on the whole history, if you already have it (the stored
                   vintage); otherwise `select` is run on the full panel to obtain it.
     log_prices    take logs of the panel first (the default; the built-in callables expect logs).
@@ -274,6 +279,10 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         w = w.where(w > 0)               # a zero or negative print is a data fault, not a log of it
     panel = np.log(w) if log_prices else w.copy()
     panel = panel.sort_index()
+    if panel.index.has_duplicates:
+        dup = int(panel.index.duplicated().sum())
+        raise ValueError(f"{dup} duplicated dates in the panel; eras are counted in rows, so a "
+                         f"repeated date double-counts a session. Deduplicate first.")
     cands = list(dict.fromkeys(candidates))   # order kept, duplicates dropped
     rng = np.random.default_rng(seed)
     full = (set(full_accepted) if full_accepted is not None else set(select(panel, cands))) & set(cands)
@@ -308,7 +317,7 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         notf = sc_acc[[c not in full for c in sc_acc.index]]
         if len(notf) == 0:
             identical_label_eras += 1      # the full window dropped nothing: no bit to measure
-        if len(also) and len(notf):
+        if len(also) >= min_split and len(notf) >= min_split:
             hind_rows.append(dict(era=f"era {e + 1} back", n_also=len(also), n_not=len(notf),
                                   also_accepted_full=float(also.mean()),
                                   not_accepted_full=float(notf.mean()),
@@ -360,8 +369,8 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                   f"report only figures computed with labels recomputed inside each era")
     elif len(hind) < 3:
         sev = "warn"
-        detail = (f"only {len(hind)} era(s) had both split groups; extend the history or the "
-                  f"candidate list before reading the hindsight number")
+        detail = (f"only {len(hind)} era(s) had both split groups of at least {min_split}; extend "
+                  f"the history or the candidate list before reading the hindsight number")
     else:
         sev = "clean"
         detail = "full-history and in-era labels lead to the same forward outcomes"
