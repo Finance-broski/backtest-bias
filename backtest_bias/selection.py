@@ -353,11 +353,16 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         sev = "clean"
         detail = ("in-era and full-window labels are identical in every era, so there is no bit of "
                   "future information to measure; read the clean gap for what the rule knows")
-    elif labels_reported_in_era and len(hind) >= 3:
+    elif labels_reported_in_era:
         sev = "clean"
-        detail = (f"reported figures used in-era labels; for the record, a full-window label would "
-                  f"have carried {h_mean:+.4f} per era of future information, positive in {h_pos} of "
-                  f"{len(hind)} eras, and overstated the honest figure by {infl:+.4f} per era")
+        if len(hind) >= 3:
+            detail = (f"reported figures used in-era labels; for the record, a full-window label would "
+                      f"have carried {h_mean:+.4f} per era of future information, positive in {h_pos} of "
+                      f"{len(hind)} eras, and overstated the honest figure by {infl:+.4f} per era")
+        else:
+            detail = (f"reported figures used in-era labels; the counterfactual cost of a full-window "
+                      f"label could not be estimated here ({len(hind)} era(s) with both split groups of "
+                      f"at least {min_split})")
     elif leak_shape:
         sev = "severe"
         detail = (f"the full-history label carries forward information worth {h_mean:+.4f} per era, "
