@@ -147,5 +147,29 @@ def test_wide_frame_without_a_datetime_index_is_accepted():
     panel, cands = _noise_panel(120, rng)
     plain = np.exp(panel).reset_index(drop=True)          # integer index, wide
     rep = check_selection(plain, cands, select=eg10, hold=HOLD, n_eras=N_ERAS, min_form=MIN_FORM,
-                          min_arm=3)
+                          min_arm=3, wide=True)
     assert rep.n_eras >= 2
+    # without the flag the same frame is refused with a hint, never guessed at
+    with pytest.raises(ValueError, match="wide=True"):
+        check_selection(plain, cands, select=eg10, hold=HOLD, n_eras=N_ERAS, min_form=MIN_FORM,
+                        min_arm=3)
+
+
+def test_select_output_outside_the_candidate_list_does_not_distort_the_rate():
+    rng = np.random.default_rng(8)
+    panel, cands = _noise_panel(40, rng)
+
+    def leaky_select(form, candidates):            # returns things that were never candidates
+        return set(candidates[:5]) | {("GHOST", "PAIR")}
+
+    def score_last_return(form, hold, pair):
+        y, _ = pair
+        s = hold[y].dropna()
+        return float(s.iloc[-1] - s.iloc[0]) if len(s) > 1 else None
+
+    rep = check_selection(np.exp(panel), cands, select=leaky_select, score=score_last_return,
+                          match_key=lambda f, p: 0.0, hold=HOLD, n_eras=N_ERAS, min_form=MIN_FORM,
+                          min_arm=3, unit="log return of the y leg per era")
+    assert (rep.eras.accept_rate <= 1.0).all()
+    assert rep.eras.n_accepted.max() <= 5
+    assert rep.unit == "log return of the y leg per era" and rep.unit in rep.summary()

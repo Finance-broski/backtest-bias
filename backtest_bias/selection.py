@@ -28,6 +28,13 @@ Adjacent eras share most of their formation data, so gaps across eras are not in
 observations. The honest strength claim is the count of eras in which the sign holds, which is
 what the report leads with; a cross-era t is reported for scale and should not be quoted as one.
 
+Two things to know before reading a result. A negative clean gap on pure noise is not a fault:
+a pair accepted on its formation window has, by selection, a spread whose formation deviation
+understates its forward deviation, so a fixed z-rule trades it more often and pays more cost
+than it does on the matched rejects. And the audit is meant for a SAMPLE of candidates, a few
+thousand drawn from the population; the default screen is a Python loop over pairs and eras,
+not a vectorised sweep, and it is the sample that carries the inference.
+
 One rule about the candidate list, learned by getting it wrong: sample candidates from the
 POPULATION the screen chooses among, never from the screen's own accept and reject lists. A pool
 built from stored accepts plus stored rejects already carries the full-window label, and the clean
@@ -220,12 +227,17 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                     match_key: Callable = return_correlation, hold: int = 250, n_eras: int = 6,
                     min_form: int = 750, match_bins: int = 10, min_arm: int = 5,
                     full_accepted: Optional[Iterable[Hashable]] = None, log_prices: bool = True,
-                    labels_reported_in_era: bool = False, seed: int = 41,
+                    labels_reported_in_era: bool = False, wide: bool = False,
+                    unit: str = "log points per era", seed: int = 41,
                     **to_wide_kw) -> SelectionReport:
     """Audit a screen for selection look-ahead.
 
-    prices        wide (dates x symbols) or long; passed through `to_wide`. Log-transformed unless
-                  `log_prices=False`.
+    prices        long (date, symbol, close columns) or wide (dates x symbols). Long frames and
+                  wide frames on a datetime index are recognised; a wide frame on any other index
+                  needs `wide=True`, because a long frame with unnamed numeric columns would
+                  otherwise be mistaken for one. Log-transformed unless `log_prices=False`.
+    unit          the unit of what `score` returns, printed in the report. The default score
+                  returns log points per era; a score in currency or percent should say so.
     candidates    the things the screen chooses among; (y, x) tuples for the default pairs screen.
                   Draw them from the population, not from the screen's stored accept/reject lists.
     select        select(formation_window, candidates) -> accepted candidates, using the window ONLY.
@@ -242,21 +254,20 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     cannot see it. The hindsight difference is the worth of one bit of future information, and it
     is the one that condemns a screen. The full-window inflation is how much a full-history
     "out-of-sample" figure overstates the honest in-era one."""
-    try:
-        w = to_wide(prices, **to_wide_kw)
-    except ValueError:
-        if isinstance(prices, pd.DataFrame) and prices.shape[1] >= 2 and \
-                prices.select_dtypes(include="number").shape[1] == prices.shape[1]:
-            w = prices.copy()             # already wide, on whatever index the caller uses
-        else:
-            raise
+    if wide:
+        w = prices.copy()
+    else:
+        try:
+            w = to_wide(prices, **to_wide_kw)
+        except ValueError as err:
+            raise ValueError(str(err) + "; if this frame is already dates x symbols, pass wide=True")
     if log_prices:
         w = w.where(w > 0)               # a zero or negative print is a data fault, not a log of it
     panel = np.log(w) if log_prices else w.copy()
     panel = panel.sort_index()
     cands = list(dict.fromkeys(candidates))   # order kept, duplicates dropped
     rng = np.random.default_rng(seed)
-    full = set(full_accepted) if full_accepted is not None else set(select(panel, cands))
+    full = (set(full_accepted) if full_accepted is not None else set(select(panel, cands))) & set(cands)
 
     era_rows, hind_rows = [], []
     identical_label_eras = 0
@@ -267,7 +278,7 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         if start_hold < min_form:
             break
         form, held = panel.iloc[:start_hold], panel.iloc[start_hold:end]
-        accepted = set(select(form, cands))
+        accepted = set(select(form, cands)) & set(cands)
         rejected = [c for c in cands if c not in accepted]
         keys_acc = pd.Series({c: match_key(form, c) for c in accepted}).dropna()
         keys_rej = pd.Series({c: match_key(form, c) for c in rejected}).dropna()
@@ -357,4 +368,5 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                            hindsight_mean=h_mean, hindsight_positive_eras=h_pos, n_hindsight_eras=len(hind),
                            hindsight_t=h_t,
                            full_window_inflation_mean=infl, match_balance=balance,
-                           identical_label_eras=identical_label_eras, severity=sev, detail=detail)
+                           identical_label_eras=identical_label_eras, severity=sev, detail=detail,
+                           unit=unit)
