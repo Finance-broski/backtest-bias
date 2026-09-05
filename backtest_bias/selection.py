@@ -19,8 +19,10 @@ apparent edge, 13.9 log points a year):
   2. Locate the leak. Among candidates accepted IN ERA on formation data alone, split by whether the
      screen run on the WHOLE history also accepts them. Both groups passed the identical test on
      identical evidence; the only difference is information from the future. The difference in
-     forward outcome between them is what one bit of future information is worth, and it is the
-     number an "out-of-sample" figure computed on full-window acceptance is inflated by.
+     forward outcome between them is what one bit of future information is worth. A full-window
+     "out-of-sample" figure is the first group alone, so its inflation over the honest in-era
+     figure is that difference times the share of in-era accepts the full window drops; the
+     report prints the inflation as its own number.
 
 Adjacent eras share most of their formation data, so gaps across eras are not independent
 observations. The honest strength claim is the count of eras in which the sign holds, which is
@@ -31,10 +33,10 @@ POPULATION the screen chooses among, never from the screen's own accept and reje
 built from stored accepts plus stored rejects already carries the full-window label, and the clean
 gap comes out positive for that reason alone. On the PairDesk vintage, 3,000 pairs drawn from the
 population reproduce the published shape: clean gap -0.010 per era, positive in 2 of 6 eras;
-hindsight difference +0.153 per era, positive in 6 of 6 (published: -0.021 and +0.139 on a
-different 6,000-pair sample).
+hindsight difference +0.153 per era, positive in 6 of 6, full-window inflation +0.112 per era
+(published: -0.021 and +0.139 on a different 6,000-pair sample).
 
-The default callables implement a pairs screen (Engle-Granger both ways against MacKinnon 2010
+The default callables implement a pairs screen (Engle-Granger both ways against MacKinnon
 finite-sample critical values) and a fixed z-score trading rule, so `check_selection` runs on a
 price panel and a list of (y, x) pairs with no other code. Any other screen is audited by passing
 its own `select`, `score` and `match_key`; the protocol does not care what is being selected.
@@ -47,8 +49,10 @@ import pandas as pd
 
 from .core import to_wide
 
-# MacKinnon (2010) response-surface coefficients, Engle-Granger residual test, one regressor,
-# regression with constant: tau_c(T) = beta_inf + beta_1 / T + beta_2 / T^2.
+# MacKinnon (1991) response-surface coefficients, Engle-Granger residual test, one regressor,
+# regression with constant: tau_c(T) = beta_inf + beta_1 / T + beta_2 / T^2. MacKinnon (2010)
+# revises them in the third decimal (5%: -3.3361, -6.1101, -6.823); the difference never decides
+# a pair at the sample sizes this runs on.
 _MACKINNON_N2_C = {0.01: (-3.9001, -10.534, -30.03),
                    0.05: (-3.3377, -5.967, -8.98),
                    0.10: (-3.0462, -4.069, -5.73)}
@@ -185,6 +189,7 @@ class SelectionReport:
     hindsight_mean: float              # the worth of one bit of future information
     hindsight_positive_eras: int
     hindsight_t: float                 # cross-era t, for scale only; eras are not independent
+    full_window_inflation_mean: float  # how much a full-window 'out-of-sample' figure overstates the honest one
     severity: str                      # "clean" | "warn" | "severe"
     detail: str
     unit: str = "log points per era"
@@ -197,6 +202,8 @@ class SelectionReport:
                  f"worth of one bit of future information: {self.hindsight_mean:+.4f} {self.unit}, "
                  f"positive in {self.hindsight_positive_eras} of {self.n_eras} eras "
                  f"(cross-era t {self.hindsight_t:+.2f}, eras overlap, do not quote it as one)",
+                 f"a full-window 'out-of-sample' figure overstates the honest one by "
+                 f"{self.full_window_inflation_mean:+.4f} {self.unit}",
                  f"verdict: {self.severity.upper()} - {self.detail}"]
         return "\n".join(lines)
 
@@ -227,6 +234,8 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     cannot see it. The hindsight difference is how much a full-history label inflates an
     "out-of-sample" figure, and it is the one that condemns a screen."""
     w = to_wide(prices, **to_wide_kw)
+    if log_prices:
+        w = w.where(w > 0)               # a zero or negative print is a data fault, not a log of it
     panel = np.log(w) if log_prices else w.copy()
     panel = panel.sort_index()
     cands = list(candidates)
@@ -261,7 +270,8 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
             hind_rows.append(dict(era=f"era {e + 1} back", n_also=len(also), n_not=len(notf),
                                   also_accepted_full=float(also.mean()),
                                   not_accepted_full=float(notf.mean()),
-                                  difference=float(also.mean() - notf.mean())))
+                                  difference=float(also.mean() - notf.mean()),
+                                  full_window_inflation=float(also.mean() - sc_acc.mean())))
 
     eras = pd.DataFrame(era_rows)
     hind = pd.DataFrame(hind_rows)
@@ -275,8 +285,9 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         h_mean = float(hind.difference.mean())
         h_pos = int((hind.difference > 0).sum())
         h_t = float(h_mean / (hind.difference.std(ddof=1) / np.sqrt(len(hind)))) if len(hind) > 1 and hind.difference.std(ddof=1) > 0 else float("nan")
+        infl = float(hind.full_window_inflation.mean())
     else:
-        h_mean, h_pos, h_t = float("nan"), 0, float("nan")
+        h_mean, h_pos, h_t, infl = float("nan"), 0, float("nan"), float("nan")
 
     # Verdict. The condemning signature is a hindsight difference that is positive in nearly every
     # era: the full-history label knows the future. The clean gap is reported as a finding about
@@ -304,4 +315,4 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     return SelectionReport(n_candidates=len(cands), n_eras=n_eras_done, hold=hold, eras=eras,
                            clean_gap_mean=gap_mean, clean_gap_positive_eras=gap_pos, hindsight=hind,
                            hindsight_mean=h_mean, hindsight_positive_eras=h_pos, hindsight_t=h_t,
-                           severity=sev, detail=detail)
+                           full_window_inflation_mean=infl, severity=sev, detail=detail)

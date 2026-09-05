@@ -70,6 +70,7 @@ def test_noise_has_no_forward_information_but_full_label_knows_the_future():
     # the leak: full-window acceptance is worth something forward even on noise
     assert len(rep.hindsight) >= 2
     assert rep.hindsight_mean > 0
+    assert 0 < rep.full_window_inflation_mean <= rep.hindsight_mean + 1e-12
     assert rep.severity in ("warn", "severe")
     assert "future" in rep.summary() or "inflated" in rep.summary() or "label" in rep.summary()
 

@@ -7,11 +7,11 @@
   `SelectionReport`. Measured first on a US pairs screen, where that bit was worth 13.9 log
   points a year and accounted for the entire apparent edge.
 - New: reference callables for a pairs screen: `eg_both_ways` (Engle-Granger both
-  orientations at MacKinnon 2010 finite-sample critical values, `eg_critical_value`),
+  orientations at MacKinnon finite-sample critical values, `eg_critical_value`),
   `zscore_rule_pnl` (fixed z-score rule forward), `return_correlation` (matching key). Any
   other screen is audited by passing its own `select`, `score` and `match_key`.
 - Reproduced on the PairDesk US vintage with a population-drawn 3,000-pair pool: clean gap
-  -0.010 per era (2 of 6 positive), hindsight +0.153 per era (6 of 6 positive).
+  -0.010 per era (2 of 6 positive), hindsight +0.153 per era (6 of 6 positive), full-window inflation +0.112 per era.
 - Reports lead with the count of eras in which the sign holds; cross-era t is printed for
   scale only, because adjacent formation windows overlap.
 

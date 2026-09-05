@@ -78,6 +78,7 @@ rep = check_selection(prices, candidates, hold=250, n_eras=6)
 print(rep.summary())
 # forward information of the rule: gap -0.0211 log points per era, positive in 1 of 6 eras
 # worth of one bit of future information: +0.1388 log points per era, positive in 6 of 6 eras
+# a full-window 'out-of-sample' figure overstates the honest one by +0.1121 log points per era
 # verdict: SEVERE - the full-history label carries forward information ...
 rep.eras        # per era: accept rate, accepted, matched rejected, gap
 rep.hindsight   # per era: also accepted on the full window vs not, and the difference
@@ -87,7 +88,8 @@ Draw the candidates from the population the screen chooses among, never from its
 and reject lists: a pool built from the screen's own labels carries the future already, and the
 clean gap comes out positive for that reason alone. On the PairDesk vintage, 3,000 population-drawn
 pairs reproduce the published shape with this code: clean gap -0.010 per era, positive in 2 of 6;
-hindsight +0.153 per era, positive in 6 of 6.
+hindsight +0.153 per era, positive in 6 of 6; a full-window figure overstates the honest one by
++0.112 per era.
 
 Any screen is audited the same way by passing its own callables: `select(formation_window,
 candidates)`, `score(formation_window, hold_window, candidate)` and `match_key(formation_window,
