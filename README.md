@@ -1,6 +1,6 @@
 # backtest-bias
 
-[![DOI](https://zenodo.org/badge/1294836988.svg)](https://doi.org/10.5281/zenodo.22373468)
+[![DOI](https://zenodo.org/badge/1294836988.svg)](https://doi.org/10.5281/zenodo.21770386)
 
 **Checks whether your backtest data is lying to you.**
 
