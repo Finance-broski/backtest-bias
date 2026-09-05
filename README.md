@@ -94,7 +94,9 @@ hindsight +0.153 per era, positive in 6 of 6; a full-window figure overstates th
 Any screen is audited the same way by passing its own callables: `select(formation_window,
 candidates)`, `score(formation_window, hold_window, candidate)` and `match_key(formation_window,
 candidate)`. If you already hold the screen's acceptance on the full history (a stored vintage),
-pass it as `full_accepted`. The protocol and the measurements it was built on are written up in
+pass it as `full_accepted`. If the figures you have reported were computed with labels
+recomputed inside each era already, say so with `labels_reported_in_era=True`: the hindsight
+number is then informational and the verdict does not condemn them. The protocol and the measurements it was built on are written up in
 the PairDesk repository's SELECTION_LOOKAHEAD document.
 
 ## What v0.2 adds

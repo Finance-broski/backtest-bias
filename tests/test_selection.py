@@ -103,11 +103,13 @@ def test_user_supplied_screen_and_score_run_through_the_protocol():
 
     rep = check_selection(np.exp(panel), cands, select=select_first_half, score=score_last_return,
                           match_key=key_zero, hold=HOLD, n_eras=N_ERAS, min_form=MIN_FORM, min_arm=3)
-    # a data-blind rule has identical in-era and full-window labels: no split, no hindsight number
+    # a data-blind rule has identical in-era and full-window labels: no bit to measure, and that
+    # is clean, not a warning
     assert rep.n_eras >= 2
     assert len(rep.hindsight) == 0
     assert np.isnan(rep.hindsight_mean)
-    assert rep.severity == "warn"       # too few split eras to read; says so rather than guessing
+    assert rep.identical_label_eras == rep.n_eras
+    assert rep.severity == "clean"
 
 
 def test_full_accepted_can_be_supplied_from_a_stored_vintage():
@@ -119,3 +121,31 @@ def test_full_accepted_can_be_supplied_from_a_stored_vintage():
     rep2 = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
                            min_form=MIN_FORM, min_arm=3)
     assert rep.hindsight_mean == pytest.approx(rep2.hindsight_mean)
+
+
+def test_in_era_labels_make_the_hindsight_number_informational():
+    rng = np.random.default_rng(3)
+    panel, cands = _noise_panel(300, rng)
+    rep = check_selection(np.exp(panel), cands, select=eg10, hold=HOLD, n_eras=N_ERAS,
+                          min_form=MIN_FORM, min_arm=3, seed=1, labels_reported_in_era=True)
+    assert rep.hindsight_mean > 0                 # the number is still measured
+    assert rep.severity == "clean"                # but it does not condemn in-era reporting
+    assert "in-era labels" in rep.detail
+
+
+def test_match_balance_is_reported_and_small_when_matching_works():
+    rng = np.random.default_rng(11)
+    panel, cands = _planted_panel(25, 60, rng)
+    rep = check_selection(np.exp(panel), cands, hold=HOLD, n_eras=N_ERAS, min_form=MIN_FORM,
+                          min_arm=3, seed=2)
+    assert "match_key_accepted" in rep.eras.columns and "match_key_rejected" in rep.eras.columns
+    assert rep.match_balance == rep.match_balance          # not NaN
+
+
+def test_wide_frame_without_a_datetime_index_is_accepted():
+    rng = np.random.default_rng(21)
+    panel, cands = _noise_panel(120, rng)
+    plain = np.exp(panel).reset_index(drop=True)          # integer index, wide
+    rep = check_selection(plain, cands, select=eg10, hold=HOLD, n_eras=N_ERAS, min_form=MIN_FORM,
+                          min_arm=3)
+    assert rep.n_eras >= 2

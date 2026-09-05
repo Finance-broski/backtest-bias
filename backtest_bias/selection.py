@@ -191,6 +191,8 @@ class SelectionReport:
     n_hindsight_eras: int              # eras in which both split groups existed
     hindsight_t: float                 # cross-era t, for scale only; eras are not independent
     full_window_inflation_mean: float  # how much a full-window 'out-of-sample' figure overstates the honest one
+    match_balance: float               # mean |key gap| between the arms; small means the matching held
+    identical_label_eras: int          # eras in which the full window dropped no in-era accept
     severity: str                      # "clean" | "warn" | "severe"
     detail: str
     unit: str = "log points per era"
@@ -218,7 +220,8 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
                     match_key: Callable = return_correlation, hold: int = 250, n_eras: int = 6,
                     min_form: int = 750, match_bins: int = 10, min_arm: int = 5,
                     full_accepted: Optional[Iterable[Hashable]] = None, log_prices: bool = True,
-                    seed: int = 41, **to_wide_kw) -> SelectionReport:
+                    labels_reported_in_era: bool = False, seed: int = 41,
+                    **to_wide_kw) -> SelectionReport:
     """Audit a screen for selection look-ahead.
 
     prices        wide (dates x symbols) or long; passed through `to_wide`. Log-transformed unless
@@ -230,12 +233,23 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     match_key     match_key(formation_window, candidate) -> nuisance value to match rejects on.
     full_accepted the screen's acceptance on the whole history, if you already have it (the stored
                   vintage); otherwise `select` is run on the full panel to obtain it.
+    labels_reported_in_era
+                  set True if the figures you have REPORTED were computed with labels recomputed
+                  inside each era already. The hindsight numbers are then informational (what a
+                  full-window label would have cost) and the verdict does not condemn them.
 
     Three numbers come back. The clean gap is what the rule knows about the forward period when it
     cannot see it. The hindsight difference is the worth of one bit of future information, and it
     is the one that condemns a screen. The full-window inflation is how much a full-history
     "out-of-sample" figure overstates the honest in-era one."""
-    w = to_wide(prices, **to_wide_kw)
+    try:
+        w = to_wide(prices, **to_wide_kw)
+    except ValueError:
+        if isinstance(prices, pd.DataFrame) and prices.shape[1] >= 2 and \
+                prices.select_dtypes(include="number").shape[1] == prices.shape[1]:
+            w = prices.copy()             # already wide, on whatever index the caller uses
+        else:
+            raise
     if log_prices:
         w = w.where(w > 0)               # a zero or negative print is a data fault, not a log of it
     panel = np.log(w) if log_prices else w.copy()
@@ -245,6 +259,7 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
     full = set(full_accepted) if full_accepted is not None else set(select(panel, cands))
 
     era_rows, hind_rows = [], []
+    identical_label_eras = 0
     T = len(panel)
     for e in range(n_eras):
         end = T - e * hold
@@ -261,13 +276,18 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         sc_rej = pd.Series({c: score(form, held, c) for c in matched}).dropna()
         if len(sc_acc) < min_arm or len(sc_rej) < min_arm:
             continue
+        key_acc_mean = float(keys_acc.reindex(sc_acc.index).mean()) if len(keys_acc) else float("nan")
+        key_rej_mean = float(keys_rej.reindex(sc_rej.index).mean()) if len(keys_rej) else float("nan")
         era_rows.append(dict(era=f"era {e + 1} back", accept_rate=len(accepted) / max(len(cands), 1),
                              n_accepted=len(sc_acc), n_rejected_matched=len(sc_rej),
                              accepted=float(sc_acc.mean()), rejected_matched=float(sc_rej.mean()),
                              gap=float(sc_acc.mean() - sc_rej.mean()),
-                             accepted_positive=float((sc_acc > 0).mean())))
+                             accepted_positive=float((sc_acc > 0).mean()),
+                             match_key_accepted=key_acc_mean, match_key_rejected=key_rej_mean))
         also = sc_acc[[c in full for c in sc_acc.index]]
         notf = sc_acc[[c not in full for c in sc_acc.index]]
+        if len(notf) == 0:
+            identical_label_eras += 1      # the full window dropped nothing: no bit to measure
         if len(also) and len(notf):
             hind_rows.append(dict(era=f"era {e + 1} back", n_also=len(also), n_not=len(notf),
                                   also_accepted_full=float(also.mean()),
@@ -292,14 +312,29 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         h_mean, h_pos, h_t, infl = float("nan"), 0, float("nan"), float("nan")
 
     # Verdict. The condemning signature is a hindsight difference that is positive in nearly every
-    # era: the full-history label knows the future. The clean gap is reported as a finding about
-    # the rule, not as a fault: a rule with no forward information is honest, it is just not an edge.
-    if len(hind) >= 3 and h_pos >= max(3, int(np.ceil(0.8 * len(hind)))) and h_mean > 0:
+    # era: the full-history label knows the future. It condemns REPORTED figures only if they were
+    # computed on full-window labels; with in-era labels the same number is informational. The
+    # clean gap is a finding about the rule, not a fault: a rule with no forward information is
+    # honest, it is just not an edge.
+    balance = float((eras.match_key_accepted - eras.match_key_rejected).abs().mean()) \
+        if eras.match_key_accepted.notna().any() else float("nan")
+    leak_shape = (len(hind) >= 3 and h_pos >= max(3, int(np.ceil(0.8 * len(hind)))) and h_mean > 0)
+    weak_shape = (len(hind) >= 3 and h_mean > 0 and h_pos > len(hind) / 2)
+    if identical_label_eras == n_eras_done:
+        sev = "clean"
+        detail = ("in-era and full-window labels are identical in every era, so there is no bit of "
+                  "future information to measure; read the clean gap for what the rule knows")
+    elif labels_reported_in_era and len(hind) >= 3:
+        sev = "clean"
+        detail = (f"reported figures used in-era labels; for the record, a full-window label would "
+                  f"have carried {h_mean:+.4f} per era of future information, positive in {h_pos} of "
+                  f"{len(hind)} eras, and overstated the honest figure by {infl:+.4f} per era")
+    elif leak_shape:
         sev = "severe"
         detail = (f"the full-history label carries forward information worth {h_mean:+.4f} per era, "
                   f"positive in {h_pos} of {len(hind)} eras; any 'out-of-sample' figure computed on "
-                  f"candidates selected on the full window is inflated by it")
-    elif len(hind) >= 3 and h_mean > 0 and h_pos > len(hind) / 2:
+                  f"candidates selected on the full window is overstated by {infl:+.4f} per era")
+    elif weak_shape:
         sev = "warn"
         detail = (f"the full-history label adds {h_mean:+.4f} per era in {h_pos} of {len(hind)} eras; "
                   f"report only figures computed with labels recomputed inside each era")
@@ -314,8 +349,12 @@ def check_selection(prices: pd.DataFrame, candidates: Sequence[Hashable],
         detail += (f"; the rule itself shows no forward information (gap {gap_mean:+.4f}, positive in "
                    f"{gap_pos} of {n_eras_done} eras), which is a finding about the rule, not a fault "
                    f"in the data")
+    if balance == balance and balance > 0.10:
+        detail += (f"; matching on the nuisance key is loose (mean key gap {balance:.2f} between the "
+                   f"arms), so part of the clean gap may be relatedness rather than selection")
     return SelectionReport(n_candidates=len(cands), n_eras=n_eras_done, hold=hold, eras=eras,
                            clean_gap_mean=gap_mean, clean_gap_positive_eras=gap_pos, hindsight=hind,
                            hindsight_mean=h_mean, hindsight_positive_eras=h_pos, n_hindsight_eras=len(hind),
                            hindsight_t=h_t,
-                           full_window_inflation_mean=infl, severity=sev, detail=detail)
+                           full_window_inflation_mean=infl, match_balance=balance,
+                           identical_label_eras=identical_label_eras, severity=sev, detail=detail)
