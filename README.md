@@ -126,7 +126,10 @@ on the full history, pass it as `full_accepted`. If the figures you have reporte
 labels recomputed inside each era already, say so with `labels_reported_in_era=True`; the hindsight
 number is then informational and the verdict does not condemn them. The protocol and the
 measurements behind it are written up in the
-[PairDesk repository](https://github.com/Finance-broski/pairdesk/blob/main/SELECTION_LOOKAHEAD.md).
+[PairDesk repository](https://github.com/Finance-broski/pairdesk/blob/main/SELECTION_LOOKAHEAD.md),
+and as a working paper, "Selection Look-Ahead Is Not a Data Problem: Measuring the Leak in a
+Screening Rule's Labels" (Jain, 2026, SSRN abstract 7423179; source and build script under
+`preregistration/`).
 
 ## What v0.2 adds
 
