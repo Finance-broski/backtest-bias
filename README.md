@@ -17,7 +17,7 @@ These are not estimates. I measured them on real Indian market data and publishe
   on survivors only.
 - Survivor-only universes inflated equal-weight returns by **+0.8 to +3.2 pp/yr** depending on
   the universe vintage and the survivor definition. Same market, same method, a factor of four
-  apart. Anyone quoting one number is guessing. (Working paper under review at SSRN.)
+  apart. Anyone quoting one number is guessing. (Working paper: [SSRN 7099378](https://ssrn.com/abstract=7099378).)
 - On the most widely used Kaggle NSE dataset, index-membership look-ahead added **+10%** terminal
   wealth cap-weighted and **+43%** equal-weighted over 2010-2021. The bias depends on construction.
 - How much of a universe *should* be dead? Measured across six top-500 vintages (2012-2022,
@@ -128,8 +128,8 @@ number is then informational and the verdict does not condemn them. The protocol
 measurements behind it are written up in the
 [PairDesk repository](https://github.com/Finance-broski/pairdesk/blob/main/SELECTION_LOOKAHEAD.md),
 and as a working paper, "Selection Look-Ahead Is Not a Data Problem: Measuring the Leak in a
-Screening Rule's Labels" (Jain, 2026, SSRN abstract 7423179; source and build script under
-`preregistration/`).
+Screening Rule's Labels" (Jain, 2026, [SSRN 7423179](https://ssrn.com/abstract=7423179), DOI 10.2139/ssrn.7423179;
+source and build script under `preregistration/`).
 
 ## What v0.2 adds
 
